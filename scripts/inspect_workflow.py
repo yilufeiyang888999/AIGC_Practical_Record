@@ -2,7 +2,7 @@
 import json, sys
 from pathlib import Path
 
-WF = Path(r"D:\Ivan-File\7-AI-Code\AIGC\Workflows\base_workflow_api.json")
+WF = Path(r"D:\AIGC\Workflows\base_workflow_api.json")
 
 if not WF.exists():
     sys.exit(f"❌ 文件不存在: {WF}")

@@ -1,0 +1,15 @@
+# 面板供给：从 /var/lib/grafana/dashboards 目录自动加载 JSON
+# 好处是面板进版本控制，重建 Grafana 容器后自动恢复，不用手工导入。
+apiVersion: 1
+
+providers:
+  - name: aigc-dashboards
+    orgId: 1
+    folder: AIGC
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true       # 允许在 UI 里微调，但改动不会回写 git —— 重要修改请改 JSON
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

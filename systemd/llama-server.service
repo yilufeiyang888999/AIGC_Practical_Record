@@ -1,0 +1,74 @@
+# /etc/systemd/system/llama-server.service
+#
+# llama.cpp 服务化（P100 Pascal sm_60）
+#
+# 三个与通用教程不同的地方，全部有实测依据：
+#   1. 四条 GGML_CUDA_* 环境变量 —— P100 专属调优（见 docs/06 §5）
+#   2. --ubatch-size 256 —— 默认 32 会把 prefill 卡在 162 tok/s，改 256 后 513 tok/s（3.2×）
+#   3. --host 127.0.0.1 —— llama-server 无鉴权，与 ComfyUI 一样只绑回环，外部走 SSH 隧道
+#
+# ⚠️ 资源互斥（docs/06 共存规则，实测）：
+#   llama-server 驻留 ~9.7G 显存。
+#   · SD1.5 512×512 出图  → 可共存
+#   · SD1.5 768×512 出图  → 需 expandable_segments 碎片治理，否则 VAE decode 阶段 OOM
+#   · SDXL 推理（12.2G）  → 不能共存，必须先停本服务
+#   · LoRA 训练           → 不能共存，必须先停本服务
+#   这条规则固化在两个地方，不靠人记住：
+#     · scripts/train_start.sh 启动前检测空闲显存 < 12G 直接退出并提示停本服务
+#     · docs/06 共存规则表 + benchmarks/实测数据.md
+
+[Unit]
+Description=llama.cpp Inference Server (P100)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/llama.cpp
+
+# ── P100 Pascal sm_60 专属调优（4 个环境变量，缺一显著变慢）────────
+# NO_VMM=1      : 透传 VM 下 VMM 分配路径异常，强制走传统分配
+# FORCE_MMQ=1   : 强制 MMQ 矩阵乘内核（Pascal 无 Tensor Core）
+# SM=60         : 显式指定编译架构为 sm_60（默认架构列表不含 60）
+# MODULE_LOADING=LAZY : 缩短启动，代价是首请求 ~0.9s kernel 加载税 → 需 warmup
+Environment="CUDA_MODULE_LOADING=LAZY"
+Environment="GGML_CUDA_NO_VMM=1"
+Environment="GGML_CUDA_FORCE_MMQ=1"
+Environment="GGML_CUDA_SM=60"
+Environment="OMP_NUM_THREADS=8"
+Environment="CUDA_VISIBLE_DEVICES=0"
+
+# 换模型改这一行即可（模型清单见 systemd/llm-switch.sh 菜单）
+Environment="LLAMA_MODEL=/opt/llama.cpp/models/ornith-1.0-9b-Q8_0.gguf"
+Environment="LLAMA_CTX=65536"
+Environment="LLAMA_PORT=8000"
+
+ExecStart=/opt/llama.cpp/build/bin/llama-server \
+          --model ${LLAMA_MODEL} \
+          --ctx-size ${LLAMA_CTX} \
+          --batch-size 256 \
+          --ubatch-size 256 \
+          --port ${LLAMA_PORT} \
+          --host 127.0.0.1 \
+          --n-gpu-layers 99 \
+          --cache-type-k q8_0 \
+          --cache-type-v q8_0 \
+          --no-mmap \
+          --parallel 1 \
+          --metrics \
+          --chat-template chatml \
+          --n-predict 3072
+
+Restart=on-failure
+RestartSec=10
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+# 模型加载 ~10s，给足超时；否则 systemd 会在加载完成前判定启动失败
+TimeoutStartSec=180
+StandardOutput=append:/opt/AIGC/logs/llama-server.log
+StandardError=append:/opt/AIGC/logs/llama-server.log
+
+[Install]
+WantedBy=multi-user.target

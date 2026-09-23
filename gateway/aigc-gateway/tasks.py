@@ -5,16 +5,21 @@
 """
 import asyncio
 import json
+import logging
+import shutil
 import time
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum
+from pathlib import Path
 
 import requests
 
 import config
 import metrics
 import comfy_client as cc
+
+log = logging.getLogger("gateway.tasks")
 
 
 class Status(str, Enum):
@@ -58,6 +63,7 @@ class TaskManager:
 
     def start(self):
         asyncio.create_task(self._worker_loop())
+        asyncio.create_task(self._cleanup_loop())
 
     async def submit(self, params: dict) -> Task:
         task = Task(params=params)
@@ -107,6 +113,10 @@ class TaskManager:
                 seed=p["seed"], steps=p["steps"], cfg=p["cfg"],
                 width=p["width"], height=p["height"],
                 filename_prefix=f"gateway/{task.id}",
+                # 可选覆盖：None 时保持模板原值（build_prompt 的约定）
+                ckpt_name=p.get("checkpoint"),
+                lora_name=p.get("lora"),
+                lora_strength=p.get("lora_strength"),
             )
             t0 = time.time()
             pid = cc.submit(s, wf)
@@ -141,6 +151,52 @@ class TaskManager:
             task.finished_at = time.time()
             metrics.IMG_DURATION.observe(task.finished_at - task.started_at)
             self.q.task_done()
+
+    # ── 保留策略 ─────────────────────────────────────────────────
+    # 没有这段，长期运行的网关必然 OOM + 撑爆磁盘：
+    #   · self.tasks 每条记录带完整 params（含 prompt 全文）与 result
+    #   · OUTPUT_DIR 每任务一个目录，永不回收
+    # 这是"能跑起来"和"能长期跑"的分界线。
+    def reap_expired_tasks(self) -> int:
+        """清理超期的内存任务记录。返回清理条数。"""
+        cutoff = time.time() - config.TASK_TTL_S
+        expired = [tid for tid, t in self.tasks.items()
+                   if (t.finished_at or t.created_at) < cutoff]
+        for tid in expired:
+            self.tasks.pop(tid, None)
+        if expired:
+            log.info("已回收 %d 条超期任务记录（TTL=%ds）", len(expired), config.TASK_TTL_S)
+        return len(expired)
+
+    def reap_expired_results(self) -> int:
+        """清理超期的结果目录。返回清理个数。"""
+        out: Path = config.OUTPUT_DIR
+        if not out.exists():
+            return 0
+        cutoff = time.time() - config.RESULT_TTL_S
+        removed = 0
+        for d in out.iterdir():
+            if not d.is_dir():
+                continue
+            try:
+                if d.stat().st_mtime < cutoff:
+                    shutil.rmtree(d)
+                    removed += 1
+            except OSError as e:
+                # 单个目录失败不要中断整轮清理，也不要静默吞掉
+                log.warning("清理结果目录失败 %s: %s", d.name, e)
+        if removed:
+            log.info("已清理 %d 个超期结果目录（TTL=%ds）", removed, config.RESULT_TTL_S)
+        return removed
+
+    async def _cleanup_loop(self):
+        while True:
+            await asyncio.sleep(config.CLEANUP_INTERVAL_S)
+            try:
+                await asyncio.to_thread(self.reap_expired_tasks)
+                await asyncio.to_thread(self.reap_expired_results)
+            except Exception as e:      # 清理失败绝不能影响主流程
+                log.warning("清理任务异常: %s", e)
 
 
 manager = TaskManager()

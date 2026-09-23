@@ -28,6 +28,12 @@ class ImageReq(BaseModel):
     width: int = Field(768, ge=256, le=1536)
     height: int = Field(512, ge=256, le=1536)
 
+    # 2026-09-23 新增：不选就只能跑工作流里写死的那一套，算不上"统一网关"。
+    # 留空 = 用模板默认值，向后兼容。
+    checkpoint: str | None = None                    # 底模文件名
+    lora: str | None = None                          # LoRA 文件名
+    lora_strength: float | None = Field(None, ge=0.0, le=2.0)
+
 
 @router.post("/images/generations", status_code=202)
 async def create_image(req: ImageReq):

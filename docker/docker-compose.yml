@@ -1,0 +1,119 @@
+# AIGC 算力端编排：ComfyUI（容器）+ GPU 监控栈
+#
+# 设计原则（每一条都对应一个实测结论，别当模板抄）：
+#   1. 所有端口只绑 127.0.0.1 —— ComfyUI / Grafana 均无鉴权，
+#      裸奔在局域网上等于开放出图算力。外部访问走 SSH 隧道（见 docs/01）。
+#   2. shm_size: 2g —— Docker 默认 /dev/shm 只有 64MB，
+#      PyTorch DataLoader / 多进程采样会 bus error。这是容器化最常见的静默炸点。
+#   3. GPU 用 gpus: all 而非 runtime: nvidia —— 新版 Compose 规范；
+#      前提是宿主机已执行 `nvidia-ctk runtime configure --set-as-default`。
+#   4. 日志必须限制大小 —— GPU 服务日志量远超预期，不设上限会撑爆根分区。
+#
+# 前置：
+#   cd docker && echo "GRAFANA_PASSWORD=..." > .env && chmod 600 .env
+#   docker compose config >/dev/null    # 语法自检
+#   docker compose up -d
+#
+# 完整交付流程见 docs/03-ComfyUI容器化部署交付手册.md
+
+name: aigc
+
+services:
+  # ── ComfyUI（容器版，与裸机 8188 并存做对照）────────────────────
+  comfyui:
+    image: aigc-comfyui:2.6.0-cu124     # 由 Dockerfile.p100 构建
+    container_name: aigc-comfyui
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8189:8188"
+    # shm 与 GPU 是两个最常见的静默失败点，缺一个都会在特定负载下才炸
+    shm_size: "2g"
+    gpus: all
+    volumes:
+      # 整个 models 目录挂载，不能只挂 checkpoints ——
+      # SDXL 需要 unet / clip / text_encoders / vae / loras，漏挂会报模型找不到
+      - /opt/AIGC/model_storage:/opt/ComfyUI/models:ro
+      - /opt/AIGC/output_container:/opt/ComfyUI/output
+      - /opt/AIGC/input:/opt/ComfyUI/input
+      - /opt/AIGC/custom_nodes:/opt/ComfyUI/custom_nodes
+    environment:
+      # P100（Pascal sm_60）必需：cuDNN 9.x 初始化失败、xformers 无 sm_60 内核
+      # RTX 5060 侧不要抄 --disable-xformers（见 docs/03 §5.1 参数对照表）
+      CLI_ARGS: >-
+        --listen 127.0.0.1 --port 8188
+        --disable-xformers
+        --disable-cuda-malloc
+    healthcheck:
+      # 用真实入口探测，不要用 import 自检（docs/03 §3.3）
+      test: ["CMD", "python", "-c",
+             "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8188/system_stats',timeout=5).status==200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      # 模型加载慢，给足启动宽限，否则会被 restart 循环打死
+      start_period: 120s
+    logging: &default-logging
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # ── DCGM Exporter（硬件层指标）───────────────────────────────────
+  dcgm-exporter:
+    image: nvcr.io/nvidia/k8s/dcgm-exporter:3.3.8-3.6.1-ubuntu22.04
+    container_name: aigc-dcgm
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9400:9400"
+    gpus: all
+    # P100（Pascal）拿不到 DCP per-process 指标（需 Volta+），
+    # 用默认 counters.csv 即可；强行开启会刷一堆 unavailable。
+    # 现场归属排查走 nvidia-smi --query-compute-apps（docs/04 §6.1）。
+    environment:
+      DCGM_EXPORTER_COLLECTORS: /etc/dcgm-exporter/default-counters.csv
+    logging: *default-logging
+
+  # ── Prometheus ───────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: aigc-prometheus
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=30d
+      - --web.enable-lifecycle        # 改规则后可 curl -X POST /-/reload 热加载
+    logging: *default-logging
+
+  # ── Grafana ──────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: aigc-grafana
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:?请在 docker/.env 中设置 GRAFANA_PASSWORD}
+      # 匿名只读在这里是刻意选择：监控面板在内网、无敏感业务数据，
+      # 且省去给每个运维开账号的流程。若要收紧，改回 false 即可。
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      # 面板以文件形式供给（provisioning），避免手工在 UI 里导入后丢失
+      - ./grafana/p100-live-dashboard.json:/var/lib/grafana/dashboards/p100-live.json:ro
+      - ./grafana/aigc-app-dashboard.json:/var/lib/grafana/dashboards/aigc-app.json:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    logging: *default-logging
+
+volumes:
+  prometheus-data:
+  grafana-data:

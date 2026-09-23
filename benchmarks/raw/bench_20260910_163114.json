@@ -1,0 +1,393 @@
+{
+  "summary": {
+    "run_id": "20260910_163114",
+    "host": "Desktop-Li",
+    "comfy_host": "http://127.0.0.1:8288",
+    "device": "cuda:0 Tesla P100-PCIE-16GB : cudaMallocAsync",
+    "checkpoint": "v1-5-pruned-emaonly.safetensors",
+    "resolution": "512x512",
+    "steps": 20,
+    "cfg": 7.0,
+    "wait_mode": "websocket",
+    "total": 20,
+    "success": 20,
+    "failed": 0,
+    "success_rate": 100.0,
+    "batch_elapsed_s": 160.8,
+    "avg_s": 7.91,
+    "median_s": 7.79,
+    "stdev_s": 0.612,
+    "min_s": 7.11,
+    "max_s": 9.11,
+    "jitter_s": 2.0,
+    "p50_s": 7.79,
+    "p90_s": 8.66,
+    "p95_s": 8.88,
+    "p99_s": 9.06,
+    "pct_confidence": "ok",
+    "throughput_per_min": 7.46,
+    "vram_peak_gb": 2.55
+  },
+  "records": [
+    {
+      "index": 1,
+      "seed": 1001,
+      "steps": 20,
+      "cfg": 7.0,
+      "width": 512,
+      "height": 512,
+      "prompt": "a cute orange cat sitting on a windowsill, soft morning light, photorealistic, 8",
+      "status": "ok",
+      "elapsed": 7.37,
+      "vram_peak_gb": 2.23,
+      "prompt_id": "671b1e67-64c7-45a9-aaf7-f0638f20eaf3",
+      "error": null,
+      "attempts": 1,
+      "files": [
+        "batch_001_00001_.png"
+      ]
+    },
+    {
+      "index": 2,
+      "seed": 1002,
+      "steps": 20,
+      "cfg": 7.0,
+      "width": 512,
+      "height": 512,
+      "prompt": "a cute orange cat sitting on a windowsill, soft morning light, photorealistic, 8",
+      "status": "ok",
+      "elapsed": 7.23,
+      "vram_peak_gb": 2.23,
+      "prompt_id": "d2788137-031e-454a-94bb-4e109f2bef62",
+      "error": null,
+      "attempts": 1,
+      "files": [
+        "batch_002_00001_.png"
+      ]
+    },
+    {
+      "index": 3,
+      "seed": 1003,
+      "steps": 20,
+      "cfg": 7.0,
+      "width": 512,
+      "height": 512,
+      "prompt": "a cute orange cat sitting on a windowsill, soft morning light, photorealistic, 8",
+      "status": "ok",
+      "elapsed": 7.48,
+      "vram_peak_gb": 2.23,
+      "prompt_id": "f0c9a92b-56ce-4cbd-bfca-6b6ab0427577",
+      "error": null,
+      "attempts": 1,
+      "files": [
+        "batch_003_00001_.png"
+      ]
+    },
+    {
+      "index": 4,
+      "seed": 1004,
+      "steps": 20,
+      "cfg": 7.0,
+      "width": 512,
+      "height": 512,
+      "prompt": "a cute orange cat sitting on a windowsill, soft morning light, photorealistic, 8",
+      "status": "ok",
+      "elapsed": 7.11,
+      "vram_peak_gb": 2.23,
+      "prompt_id": "3656413d-d52f-4a3a-ad07-4f633aaf917d",
+      "error": null,
+      "attempts": 1,
+      "files": [
+        "batch_004_00001_.png"
+      ]
+    },
+    {
+      "index": 5,
+      "seed": 1001,
+      "steps": 20,
+      "cfg": 7.0,
+      "width": 512,
+      "height": 512,
+      "prompt": "a golden retriever running on a beach at sunset, motion blur, photorealistic",
+      "status": "ok",
+      "elapsed": 7.71,
+      "vram_peak_gb": 2.23,
+      "prompt_id": "79f680f3-ff01-4e4c-8679-040bc84290f8",
+      "error": null,
+      "attempts": 1,
+      "files": [
+        "batch_005_00001_.png"
+      ]
+    },
+    {
+      "index": 6,
+      "seed": 1002,
+      "steps": 20,
+      "cfg": 7.0,
+      "width": 512,
+      "height": 512,
+      "prompt": "a golden retriever running on a beach at sunset, motion blur, photorealistic",
+      "status": "ok",
+      "elapsed": 7.16,
+      "vram_peak_gb": 2.23,
+      "prompt_id": "1be4210e-4f42-4a96-91b1-bf1bcebb9146",
+      "error": null,
+      "attempts": 1,
+      "files": [
+        "batch_006_00001_.png"
+      ]
+    },
+    {
+      "index": 7,
+      "seed": 1003,
+      "steps": 20,
+      "cfg": 7.0,
+      "width": 512,
+      "height": 512,
+      "prompt": "a golden retriever running on a beach at sunset, motion blur, photorealistic",
+      "status": "ok",
+      "elapsed": 7.51,
+      "vram_peak_gb": 2.23,
+      "prompt_id": "825a1ee5-7100-4992-829a-0b2e95b1ee34",
+      "error": null,
+      "attempts": 1,
+      "files": [
+        "batch_007_00001_.png"
+      ]
+    },
+    {
+      "index": 8,
+      "seed": 1004,
+      "steps": 20,
+      "cfg": 7.0,
+      "width": 512,
+      "height": 512,
+      "prompt": "a golden retriever running on a beach at sunset, motion blur, photorealistic",
+      "status": "ok",
+      "elapsed": 7.2,
+      "vram_peak_gb": 2.52,
+      "prompt_id": "09845c56-332a-4409-81fd-7e181bc0a607",
+      "error": null,
+      "attempts": 1,
+      "files": [
+        "batch_008_00001_.png"
+      ]
+    },
+    {
+      "index": 9,
+      "seed": 1001,
+      "steps": 20,
+      "cfg": 7.0,
+      "width": 512,
+      "height": 512,
+      "prompt": "a steaming cup of coffee on a wooden desk, shallow depth of field, cozy",
+      "status": "ok",
+      "elapsed": 7.76,
+      "vram_peak_gb": 2.23,
+      "prompt_id": "ea043c39-3f95-4671-ae04-418042d2e3fa",
+      "error": null,
+      "attempts": 1,
+      "files": [
+        "batch_009_00001_.png"
+      ]
+    },
+    {
+      "index": 10,
+      "seed": 1002,
+      "steps": 20,
+      "cfg": 7.0,
+      "width": 512,
+      "height": 512,
+      "prompt": "a steaming cup of coffee on a wooden desk, shallow depth of field, cozy",
+      "status": "ok",
+      "elapsed": 7.45,
+      "vram_peak_gb": 2.23,
+      "prompt_id": "bf7e4fd2-303c-418f-8aae-7392d001d8a5",
+      "error": null,
+      "attempts": 1,
+      "files": [
+        "batch_010_00001_.png"
+      ]
+    },
+    {
+      "index": 11,
+      "seed": 1003,
+      "steps": 20,
+      "cfg": 7.0,
+      "width": 512,
+      "height": 512,
+      "prompt": "a steaming cup of coffee on a wooden desk, shallow depth of field, cozy",
+      "status": "ok",
+      "elapsed": 8.2,
+      "vram_peak_gb": 2.23,
+      "prompt_id": "0d9dc6a4-5502-4191-9deb-9c6f8b3551a5",
+      "error": null,
+      "attempts": 1,
+      "files": [
+        "batch_011_00001_.png"
+      ]
+    },
+    {
+      "index": 12,
+      "seed": 1004,
+      "steps": 20,
+      "cfg": 7.0,
+      "width": 512,
+      "height": 512,
+      "prompt": "a steaming cup of coffee on a wooden desk, shallow depth of field, cozy",
+      "status": "ok",
+      "elapsed": 7.82,
+      "vram_peak_gb": 2.23,
+      "prompt_id": "781f8281-e4a9-457f-b94b-ff1afa260941",
+      "error": null,
+      "attempts": 1,
+      "files": [
+        "batch_012_00001_.png"
+      ]
+    },
+    {
+      "index": 13,
+      "seed": 1001,
+      "steps": 20,
+      "cfg": 7.0,
+      "width": 512,
+      "height": 512,
+      "prompt": "an old lighthouse on a rocky cliff, stormy sky, dramatic lighting",
+      "status": "ok",
+      "elapsed": 8.5,
+      "vram_peak_gb": 2.23,
+      "prompt_id": "8f40ae34-1265-4464-bde8-ce9fb73d8ef2",
+      "error": null,
+      "attempts": 1,
+      "files": [
+        "batch_013_00001_.png"
+      ]
+    },
+    {
+      "index": 14,
+      "seed": 1002,
+      "steps": 20,
+      "cfg": 7.0,
+      "width": 512,
+      "height": 512,
+      "prompt": "an old lighthouse on a rocky cliff, stormy sky, dramatic lighting",
+      "status": "ok",
+      "elapsed": 8.06,
+      "vram_peak_gb": 2.23,
+      "prompt_id": "a3bfce8b-9d46-431a-ac49-465bbf31b5cd",
+      "error": null,
+      "attempts": 1,
+      "files": [
+        "batch_014_00001_.png"
+      ]
+    },
+    {
+      "index": 15,
+      "seed": 1003,
+      "steps": 20,
+      "cfg": 7.0,
+      "width": 512,
+      "height": 512,
+      "prompt": "an old lighthouse on a rocky cliff, stormy sky, dramatic lighting",
+      "status": "ok",
+      "elapsed": 8.64,
+      "vram_peak_gb": 2.55,
+      "prompt_id": "12cc63a7-0c49-44b6-900c-7e42364153c6",
+      "error": null,
+      "attempts": 1,
+      "files": [
+        "batch_015_00001_.png"
+      ]
+    },
+    {
+      "index": 16,
+      "seed": 1004,
+      "steps": 20,
+      "cfg": 7.0,
+      "width": 512,
+      "height": 512,
+      "prompt": "an old lighthouse on a rocky cliff, stormy sky, dramatic lighting",
+      "status": "ok",
+      "elapsed": 8.2,
+      "vram_peak_gb": 2.23,
+      "prompt_id": "6c5f344f-f9eb-4d86-b21b-824633f1953d",
+      "error": null,
+      "attempts": 1,
+      "files": [
+        "batch_016_00001_.png"
+      ]
+    },
+    {
+      "index": 17,
+      "seed": 1001,
+      "steps": 20,
+      "cfg": 7.0,
+      "width": 512,
+      "height": 512,
+      "prompt": "a bowl of ramen with soft-boiled egg, overhead shot, food photography",
+      "status": "ok",
+      "elapsed": 8.87,
+      "vram_peak_gb": 2.23,
+      "prompt_id": "3932e441-5661-4001-a90c-fb7b7dc75ad8",
+      "error": null,
+      "attempts": 1,
+      "files": [
+        "batch_017_00001_.png"
+      ]
+    },
+    {
+      "index": 18,
+      "seed": 1002,
+      "steps": 20,
+      "cfg": 7.0,
+      "width": 512,
+      "height": 512,
+      "prompt": "a bowl of ramen with soft-boiled egg, overhead shot, food photography",
+      "status": "ok",
+      "elapsed": 8.3,
+      "vram_peak_gb": 2.23,
+      "prompt_id": "f6b9d88a-a4e5-4c93-a314-ee5b5e38f350",
+      "error": null,
+      "attempts": 1,
+      "files": [
+        "batch_018_00001_.png"
+      ]
+    },
+    {
+      "index": 19,
+      "seed": 1003,
+      "steps": 20,
+      "cfg": 7.0,
+      "width": 512,
+      "height": 512,
+      "prompt": "a bowl of ramen with soft-boiled egg, overhead shot, food photography",
+      "status": "ok",
+      "elapsed": 9.11,
+      "vram_peak_gb": 2.23,
+      "prompt_id": "8d564a44-101a-4e91-a0b1-74b5f1f17b7b",
+      "error": null,
+      "attempts": 1,
+      "files": [
+        "batch_019_00001_.png"
+      ]
+    },
+    {
+      "index": 20,
+      "seed": 1004,
+      "steps": 20,
+      "cfg": 7.0,
+      "width": 512,
+      "height": 512,
+      "prompt": "a bowl of ramen with soft-boiled egg, overhead shot, food photography",
+      "status": "ok",
+      "elapsed": 8.57,
+      "vram_peak_gb": 2.23,
+      "prompt_id": "49afefe0-19ac-435c-998a-6f0647900e24",
+      "error": null,
+      "attempts": 1,
+      "files": [
+        "batch_020_00001_.png"
+      ]
+    }
+  ]
+}

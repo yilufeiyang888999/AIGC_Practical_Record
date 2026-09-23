@@ -15,7 +15,8 @@ from urllib3.util.retry import Retry
 BASE_DIR   = Path(__file__).parent
 COMFY_HOST = os.getenv("COMFY_HOST", "http://127.0.0.1:8188").rstrip("/")
 TIMEOUT    = (5, 30)            # (连接超时, 读取超时) —— 不设 timeout 是运维大忌
-WF_FILE    = BASE_DIR / "workflows" / "base_workflow_api.json"
+# 网关自带 workflows/，默认用带 LoRA 的那份（此前指向不存在的 base_workflow_api.json）
+WF_FILE    = BASE_DIR / "workflows" / "lora_workflow_api.json"
 OUT_DIR    = BASE_DIR / "output"
 LOG_DIR    = BASE_DIR / "logs"
 
@@ -81,9 +82,30 @@ def find_by_class(wf: dict, class_type: str, index: int = 0) -> str:
 def build_prompt(wf_template: dict, *, positive: str = None, negative: str = None,
                  seed: int = None, steps: int = None, cfg: float = None,
                  width: int = None, height: int = None,
-                 batch_size: int = None, filename_prefix: str = None) -> dict:
-    """基于模板生成一个变体。deepcopy 避免污染模板。传 None 的参数保持模板原值。"""
+                 batch_size: int = None, filename_prefix: str = None,
+                 ckpt_name: str = None, lora_name: str = None,
+                 lora_strength: float = None) -> dict:
+    """基于模板生成一个变体。deepcopy 避免污染模板。传 None 的参数保持模板原值。
+
+    ckpt_name / lora_name / lora_strength 为可选覆盖（2026-09-23 新增）：
+    网关要支持"换底模 / 换 LoRA / 调强度"，否则它只能跑工作流里写死的那一套，
+    算不上统一网关。传 None 时保持模板原值，向后兼容。
+    """
     wf = copy.deepcopy(wf_template)
+
+    if ckpt_name is not None:
+        wf[find_by_class(wf, "CheckpointLoaderSimple")]["inputs"]["ckpt_name"] = ckpt_name
+    if lora_name is not None or lora_strength is not None:
+        try:
+            lora_node = wf[find_by_class(wf, "LoraLoader")]
+        except KeyError:
+            # 模板里没有 LoRA 节点却要求改 LoRA —— 静默忽略会让人以为生效了
+            raise ValueError("工作流模板中没有 LoraLoader 节点，无法设置 lora_name/lora_strength")
+        if lora_name is not None:
+            lora_node["inputs"]["lora_name"] = lora_name
+        if lora_strength is not None:
+            lora_node["inputs"]["strength_model"] = lora_strength
+            lora_node["inputs"]["strength_clip"] = lora_strength
 
     if positive is not None:
         wf[find_by_title(wf, "POSITIVE_PROMPT")]["inputs"]["text"] = positive

@@ -1,7 +1,7 @@
 """
 LLM 推理性能实测（llama.cpp OpenAI 兼容 API，流式）
 用法：
-    set LLM_HOST=http://172.16.10.104:8000     # llama-server（0.0.0.0 暴露，局域网直连）
+    set LLM_HOST=http://192.168.1.100:8000     # llama-server（0.0.0.0 暴露，局域网直连）
     python llm_bench.py
 产出：
     logs/llm_bench_<run_id>.json    结构化指标（benchmarks 数据源）

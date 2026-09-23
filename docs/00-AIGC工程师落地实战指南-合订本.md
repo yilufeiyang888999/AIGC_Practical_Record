@@ -252,7 +252,7 @@ network:
 
 ```
 Host aigc-box
-    HostName 172.16.10.104             # 替换成 Ubuntu 实际 IP
+    HostName 192.168.1.100             # 替换成 Ubuntu 实际 IP
     User 你的实际Ubuntu用户名             # 替换！不能是字面量
     LocalForward 8288 127.0.0.1:8188   # 本地 8288 → 远端 ComfyUI 8188
     LocalForward 7960 127.0.0.1:7860   # 本地 7960 → 远端 Kohya 7860
@@ -368,7 +368,7 @@ git config --global url."https://gh-proxy.com/https://github.com/".insteadOf "ht
 ```bash
 # Windows Git Bash
 ssh-keygen -t ed25519
-ssh-copy-id 你的实际用户名@172.16.10.104
+ssh-copy-id 你的实际用户名@192.168.1.100
 ssh aigc-box "echo ok"   # 不应再问密码
 ```
 
@@ -871,7 +871,7 @@ scp /d/AIGC/ComfyUI-Win/base_workflow.json aigc-box:/opt/AIGC/ComfyUI-server/wor
 
 ### 2.0 目录结构
 
-实际落地的脚本目录（本项目为 `D:\Ivan-File\7-AI-Code\AIGC\Scripts\`，路径按你自己的实际情况调整）：
+实际落地的脚本目录（本项目为 `D:\AIGC\Scripts\`，路径按你自己的实际情况调整）：
 
 ```
 Scripts\
@@ -1708,7 +1708,7 @@ P100 把 text encoder 放到了 CPU，省显存但增加 CPU 开销。**跨机�
 | 两端 | 任务失败率 | > 5%（5 分钟窗口） | |
 | 两端 | 任务"消失"次数 | > 0 | 分配器/驱动异常的早期信号 |
 
-完整数据（9 轮 / 170 样本）、三次修正过程与 12 项局限声明见 `benchmarks-实测数据.md`。
+完整数据（**18 轮 / 340 样本** + 7 轮 LLM）、修正过程与局限声明见 `benchmarks/实测数据.md`。
 
 ### 2.6 WebSocket 实时进度（已完成）
 
@@ -1812,7 +1812,7 @@ python comfy_batch_gen.py
 3. ✅ `comfy_batch_gen.py`（批量 + 指标采集 + 自适应超时 + `/interrupt` + JSON/CSV 双输出）
 4. ✅ `inspect_workflow.py`（工作流结构检查工具）
 5. ✅ `workflows/base_workflow_api.json`（带 `_meta.title` 约定）
-6. ✅ `benchmarks-实测数据.md`（9 轮 170 样本 + 三次结论修正 + 8 个工程发现 + 12 项局限声明）
+6. ✅ `benchmarks-实测数据.md`（**18 轮 340 样本 + 7 轮 LLM** + 修正记录 + 工程发现 + 局限声明）
 7. ✅ `ComfyUI-API开发手册.md`（8 章：格式对比 / 接口速查 / WS 协议 / 生产实践清单 / 踩坑记录）
 
 **阶段二于 2026-09-10 完成。**
@@ -2730,41 +2730,58 @@ litellm --model /opt/AIGC/llm_models/Qwen2.5-7B-Instruct-Q4_K_M.gguf \
 
 ### 5.4 作品集打包（GitHub）
 
+> 2026-09-23 与实际仓库对齐（此前这棵树是计划版，与交付物不一致）。
+
 ```
 AIGC-Engineer-Portfolio/
-├─ README.md                      # 项目总览 + 架构图 + 实测数据
+├─ README.md                      # 项目总览 + 架构图 + 实测数据摘要
 ├─ docs/
-│  ├─ 00-环境基线表与硬件能力矩阵.md
-│  ├─ 01-ComfyUI双机部署手册.md
-│  ├─ 02-ComfyUI API开发手册.md
-│  ├─ 03-容器化部署交付手册.md
-│  ├─ 04-GPU监控与告警方案.md
-│  ├─ 05-LoRA标准化训练手册.md
-│  ├─ 06-LLM服务化部署手册.md
-│  └─ 07-企业私有化AIGC平台方案.md
+│  ├─ 00-AIGC工程师落地实战指南-合订本.md   # 五阶段完整指南 + 54 个踩坑清单
+│  ├─ 01-ComfyUI双机部署手册.md             # 版本基线 / 驱动锁定 / SSH 隧道 / systemd
+│  ├─ 02-ComfyUI-API开发手册.md             # REST/WebSocket 客户端、批量生成
+│  ├─ 03-ComfyUI容器化部署交付手册.md        # 离线可复现镜像、四维构建自检
+│  ├─ 04-GPU监控与告警方案.md               # 三层监控、实测阈值、闭环案例
+│  ├─ 05-LoRA训练工程化实战手册.md           # 训练全链路、评测方法论、四次误诊实录
+│  ├─ 06-LLM服务化部署手册.md               # P100 调优四参数、ubatch 3.2×、共存规则
+│  ├─ 07-企业私有化AIGC平台方案.md           # 选型/TCO/合规/安全/路线图
+│  ├─ 08-平台使用指南.md                    # 业务/开发者/运维三类角色手册
+│  └─ 09-自我修正与方法论.md                 # 六次结论修正（本项目最值钱的内容）
 ├─ scripts/
-│  ├─ verify_env.py
-│  ├─ comfy_client.py
-│  ├─ comfy_batch_gen.py
-│  ├─ train_start.sh
-│  └─ docker_deploy.sh
+│  ├─ verify_env.py               # 环境四维校验（真跑 kernel，不看 is_available）
+│  ├─ comfy_client.py             # ComfyUI REST 客户端（生产级容错）
+│  ├─ comfy_ws.py                 # WebSocket 精测客户端
+│  ├─ comfy_batch_gen.py          # 批量基准（输出结构化 JSON/CSV）
+│  ├─ llm_bench.py                # LLM 基准（服务端权威计时）
+│  ├─ sdxl_eval.py / inspect_workflow.py
+│  ├─ train_start.sh              # LoRA 训练启动（sd15/sdxl，含前置硬校验）
+│  ├─ docker_deploy.sh            # 编排一键部署/回滚 + 前置检查
+│  └─ summarize_runs.py           # 一键重算 benchmarks 全部表格（可自验）
 ├─ docker/
-│  ├─ Dockerfile
-│  ├─ Dockerfile.win
-│  ├─ docker-compose.yml
-│  └─ monitoring/
+│  ├─ Dockerfile.p100             # P100 离线可复现镜像
+│  ├─ Dockerfile.win              # 5060 侧
+│  ├─ docker-compose.yml          # ComfyUI + dcgm + Prometheus + Grafana
+│  ├─ .env.example
+│  ├─ monitoring/
+│  │  ├─ prometheus.yml           # 抓取配置（5s 间隔，三层数据源）
+│  │  └─ alert_rules.yml          # 告警规则（阈值全部标注实测依据）
+│  └─ grafana/
+│     ├─ p100-live-dashboard.json / aigc-app-dashboard.json
+│     └─ provisioning/{datasources,dashboards}/
 ├─ systemd/
-│  ├─ comfyui.service
-│  ├─ kohya-gui.service
-│  └─ llama-server.service
-├─ gateway/
-│  └─ aigc-gateway/
-├─ workflows/
-│  ├─ base_workflow.json
-│  └─ batch_workflow.json
+│  ├─ comfyui.service             # 自愈 + 防重启风暴
+│  ├─ aigc-gateway.service
+│  ├─ llama-server.service        # P100 四参数调优 + 资源互斥说明
+│  └─ llm-switch.sh               # 交互式模型切换
+├─ gateway/aigc-gateway/          # FastAPI 统一网关（鉴权/队列/GPU准入/指标）
+├─ workflows/                     # API 格式工作流（base / lora / sdxl_lora）
 └─ benchmarks/
-   └─ 实测数据.md
+   ├─ 实测数据.md                  # 全部实测数据 + 测量方法修正记录
+   └─ raw/                         # 25 轮原始数据（50 文件，证据链）
 ```
+
+> **关于 `kohya-gui.service`**：原计划中有，实际**未交付，也不应交付**。
+> kohya_ss GUI 硬卡 `torch==2.7.0+cu128`，与 P100（535 驱动 / CUDA 12.2 上限）双重不兼容，
+> 阶段四已改走 sd-scripts CLI（理由见 05 手册 §3）。**交付一个用不了的 service 文件是自欺欺人。**
 
 **`benchmarks/实测数据.md` 是简历的弹药**，至少包含：
 
@@ -3486,7 +3503,8 @@ loss: 0.205 → 0.183（稳步下降，健康）
 - 当前版本：**V1.5 合订本**（2026-09-17 更新，含阶段一 + 阶段二完整 + 阶段三 100% + 阶段四首个 LoRA 闭环及根因修正）
 - 历史版本（V1 / V2 / V1.1 / V1.2 / V1.3 / V1.4 / V1.5）保留在目录中作为历史记录
 - 配套交付物：
-  - `benchmarks-实测数据.md`（9 轮 170 样本 / 三机对照 / 三次结论修正 / 容器化开销量化）
+  - `benchmarks-实测数据.md`（**18 轮 340 样本 + 7 轮 LLM** / 三机对照 / 修正记录 / 容器化开销量化）
+  - `benchmarks/raw/`（25 轮原始数据，50 文件，可一键重算）
   - `ComfyUI-API开发手册.md`（8 章完整手册）
   - `docker/Dockerfile.p100` + `docker/Dockerfile.win`（双卡镜像，可复现）
   - `docs/03-ComfyUI容器化部署交付手册.md`

@@ -106,7 +106,7 @@
   },
   "13": {
     "inputs": {
-      "lora_name": "myshiba_v2.safetensors",
+      "lora_name": "myshiba_v4.safetensors",
       "strength_model": 0.5,
       "strength_clip": 0.5,
       "model": [

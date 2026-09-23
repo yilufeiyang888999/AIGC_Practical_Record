@@ -5,7 +5,7 @@
 #   2. 新增 --metrics（Prometheus 指标，接入监控栈）
 #   3. --ubatch-size 32→256（prefill 3.2×，benchmarks §2.5.4）
 #   4. 菜单注释与实际参数对齐（Q8 ctx=65536）
-#   5. 启动信息 IP 改为动态获取（原硬编码 172.16.104.100 与实际不符）
+#   5. 启动信息 IP 改为动态获取（原硬编码 IP 与实际不符）
 # ================ 配置区域（llama.cpp 最新版 master） ================
 MODEL_DIR="/opt/llama.cpp/models"
 SERVER_BIN="/opt/llama.cpp/build/bin/llama-server"
@@ -87,10 +87,15 @@ if [ ! -f "$MODEL_DIR/$MODEL" ]; then
 fi
 
 # 启动信息（IP 动态获取，不再硬编码）
+# ⚠️ 2026-09-23 修正：监听地址 0.0.0.0 → 127.0.0.1。
+#    llama-server 无鉴权，绑 0.0.0.0 等于把推理算力开放到局域网，
+#    与 docs/03 §4.1"所有服务只绑 127.0.0.1，外部访问走 SSH 隧道"的既定策略冲突。
+#    外部（Windows 开发端）访问走：ssh -L 8000:127.0.0.1:8000 <算力端>
 LAN_IP=$(hostname -I | awk '{print $1}')
 echo -e "\n========================================="
 echo " 模型：$MODEL | 上下文：$CTX_SIZE"
-echo " 地址：http://${LAN_IP}:$PORT"
+echo " 监听：127.0.0.1:$PORT（仅回环，符合安全基线）"
+echo " 外部访问：ssh -L ${PORT}:127.0.0.1:${PORT} ${LAN_IP}"
 if [ "$1" = "--keep-running" ]; then
     echo " 模式：保留已有进程，启动新进程"
 fi
@@ -99,13 +104,14 @@ echo -e "=========================================\n"
 # ====================== 核心启动命令 ======================
 # --ubatch-size 256：prefill 3.2×（benchmarks §2.5.4 A/B 实测）
 # --metrics：Prometheus 指标端点（接入监控栈）
+# --host 127.0.0.1：无鉴权服务只绑回环（2026-09-23 修正，原为 0.0.0.0）
 CUDA_VISIBLE_DEVICES=$CUDA_DEVICE "$SERVER_BIN" \
 --model "$MODEL_DIR/$MODEL" \
 --ctx-size $CTX_SIZE \
 --batch-size $BATCH_SIZE \
 --ubatch-size 256 \
 --port $PORT \
---host 0.0.0.0 \
+--host 127.0.0.1 \
 --n-gpu-layers 99 \
 --cache-type-k q8_0 \
 --cache-type-v q8_0 \

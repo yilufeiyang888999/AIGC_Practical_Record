@@ -1,0 +1,53 @@
+# Prometheus 抓取配置
+#
+# 抓取间隔 5s 是被实测逼出来的，不是默认值偏好：
+#   P100 单张出图 7.9s、5060 只有 1.94s。15s 的默认间隔根本采不到单张粒度，
+#   温度墙降频这种"70 秒内爬到拐点"的过程会被完全糊掉。
+#   即便 5s 也只能看到趋势 —— 单张耗时必须由应用侧主动上报（见 docs/04 §6.4）。
+#
+# 三层数据来源：
+#   dcgm     → 硬件层（温度/频率/功耗/显存/XID）
+#   llama    → 服务层（llama-server --metrics，OpenAI 兼容服务的 TTFT/吞吐）
+#   gateway  → 应用层（aigc-gateway /metrics，单张耗时与队列深度）
+
+global:
+  scrape_interval: 5s
+  evaluation_interval: 15s
+  external_labels:
+    node: "aigc-p100"
+
+rule_files:
+  - /etc/prometheus/alert_rules.yml
+
+scrape_configs:
+  # ── 硬件层：DCGM ────────────────────────────────────────────────
+  - job_name: dcgm
+    static_configs:
+      - targets: ["dcgm-exporter:9400"]
+        labels: { gpu: "P100", arch: "sm_60" }
+
+  # ── 服务层：llama.cpp ───────────────────────────────────────────
+  # llama-server 需带 --metrics 启动（见 systemd/llama-server.service）。
+  # 宿主机上的服务用 host.docker.internal 或实际 IP 访问；
+  # 若与 compose 同网络，改用服务名。
+  - job_name: llama
+    static_configs:
+      - targets: ["host.docker.internal:8000"]
+        labels: { service: "llama-server", model: "ornith-9b-q8_0" }
+    # LLM 请求动辄 10s+，抓取超时不能按默认值
+    scrape_timeout: 10s
+
+  # ── 应用层：aigc-gateway ────────────────────────────────────────
+  # 这是唯一能拿到"单张耗时"和"队列深度"的数据源，
+  # 也是补 dcgm 抓取间隔短板的关键（docs/04 §8.1）。
+  - job_name: gateway
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["host.docker.internal:8300"]
+        labels: { service: "aigc-gateway" }
+    scrape_timeout: 10s
+
+  # ── Prometheus 自身 ─────────────────────────────────────────────
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

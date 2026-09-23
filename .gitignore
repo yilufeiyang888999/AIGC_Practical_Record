@@ -16,3 +16,9 @@ venv/
 *.ckpt
 wheels/
 comfyui-src.tar.gz
+
+# ── 例外：benchmarks/raw/ 是证据链，必须入库 ──────────────────
+# README 承诺"每个性能数字都有原始数据文件可查"，
+# 上面的 logs/ 规则本会误伤原始基准数据，这里显式放行。
+!benchmarks/raw/
+!benchmarks/raw/**

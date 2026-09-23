@@ -1,0 +1,16 @@
+# Grafana 数据源（provisioning 方式供给，避免手工配置后容器重建即丢失）
+# uid 必须为 prometheus —— 下面两个面板 JSON 里硬编码引用了这个 uid。
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    uid: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      # 与 prometheus.yml 的 global.scrape_interval 保持一致，
+      # 否则面板上的 min interval 会让曲线比实际更平滑，掩盖短时尖峰。
+      timeInterval: "5s"

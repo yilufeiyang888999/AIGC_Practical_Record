@@ -1,0 +1,393 @@
+{
+  "summary": {
+    "run_id": "20260921_160655",
+    "host": "Desktop-Li",
+    "comfy_host": "http://127.0.0.1:8288",
+    "device": "cuda:0 Tesla P100-PCIE-16GB : native",
+    "checkpoint": "v1-5-pruned-emaonly.safetensors",
+    "resolution": "768x512",
+    "steps": 25,
+    "cfg": 7.0,
+    "wait_mode": "websocket",
+    "total": 20,
+    "success": 20,
+    "failed": 0,
+    "success_rate": 100.0,
+    "batch_elapsed_s": 413.8,
+    "avg_s": 20.52,
+    "median_s": 21.12,
+    "stdev_s": 1.794,
+    "min_s": 17.9,
+    "max_s": 23.4,
+    "jitter_s": 5.5,
+    "p50_s": 21.12,
+    "p90_s": 22.46,
+    "p95_s": 23.07,
+    "p99_s": 23.33,
+    "pct_confidence": "ok",
+    "throughput_per_min": 2.9,
+    "vram_peak_gb": 12.2
+  },
+  "records": [
+    {
+      "index": 1,
+      "seed": 1001,
+      "steps": 25,
+      "cfg": 7.0,
+      "width": 768,
+      "height": 512,
+      "prompt": "shiba inu, 1dog, solo, one animal, full body, standing, best quality, detailed f",
+      "status": "ok",
+      "elapsed": 17.9,
+      "vram_peak_gb": 12.2,
+      "prompt_id": "ee604853-abec-4652-a062-02b89951343b",
+      "error": null,
+      "attempts": 1,
+      "files": [
+        "batch_001_00001_.png"
+      ]
+    },
+    {
+      "index": 2,
+      "seed": 1002,
+      "steps": 25,
+      "cfg": 7.0,
+      "width": 768,
+      "height": 512,
+      "prompt": "shiba inu, 1dog, solo, one animal, full body, standing, best quality, detailed f",
+      "status": "ok",
+      "elapsed": 17.98,
+      "vram_peak_gb": 12.2,
+      "prompt_id": "c9b8ac36-629d-4dcb-ae53-cf15d3cf277c",
+      "error": null,
+      "attempts": 1,
+      "files": [
+        "batch_002_00001_.png"
+      ]
+    },
+    {
+      "index": 3,
+      "seed": 1003,
+      "steps": 25,
+      "cfg": 7.0,
+      "width": 768,
+      "height": 512,
+      "prompt": "shiba inu, 1dog, solo, one animal, full body, standing, best quality, detailed f",
+      "status": "ok",
+      "elapsed": 18.28,
+      "vram_peak_gb": 12.2,
+      "prompt_id": "16166f00-040f-4979-a220-7668683537ab",
+      "error": null,
+      "attempts": 1,
+      "files": [
+        "batch_003_00001_.png"
+      ]
+    },
+    {
+      "index": 4,
+      "seed": 1004,
+      "steps": 25,
+      "cfg": 7.0,
+      "width": 768,
+      "height": 512,
+      "prompt": "shiba inu, 1dog, solo, one animal, full body, standing, best quality, detailed f",
+      "status": "ok",
+      "elapsed": 18.22,
+      "vram_peak_gb": 12.2,
+      "prompt_id": "efab6bf2-ab1f-4de5-91ec-f2e1ab018242",
+      "error": null,
+      "attempts": 1,
+      "files": [
+        "batch_004_00001_.png"
+      ]
+    },
+    {
+      "index": 5,
+      "seed": 1001,
+      "steps": 25,
+      "cfg": 7.0,
+      "width": 768,
+      "height": 512,
+      "prompt": "shiba inu, 1dog, solo, one animal, sitting, looking at viewer, best quality, det",
+      "status": "ok",
+      "elapsed": 18.42,
+      "vram_peak_gb": 12.2,
+      "prompt_id": "d9e43f7d-7b00-437e-aa16-ec61bd396069",
+      "error": null,
+      "attempts": 1,
+      "files": [
+        "batch_005_00001_.png"
+      ]
+    },
+    {
+      "index": 6,
+      "seed": 1002,
+      "steps": 25,
+      "cfg": 7.0,
+      "width": 768,
+      "height": 512,
+      "prompt": "shiba inu, 1dog, solo, one animal, sitting, looking at viewer, best quality, det",
+      "status": "ok",
+      "elapsed": 18.42,
+      "vram_peak_gb": 12.2,
+      "prompt_id": "102815ff-76b9-4b86-8d6e-dd179f36abe2",
+      "error": null,
+      "attempts": 1,
+      "files": [
+        "batch_006_00001_.png"
+      ]
+    },
+    {
+      "index": 7,
+      "seed": 1003,
+      "steps": 25,
+      "cfg": 7.0,
+      "width": 768,
+      "height": 512,
+      "prompt": "shiba inu, 1dog, solo, one animal, sitting, looking at viewer, best quality, det",
+      "status": "ok",
+      "elapsed": 19.24,
+      "vram_peak_gb": 12.2,
+      "prompt_id": "5e4099e3-0259-4117-bb5b-423bec2080c8",
+      "error": null,
+      "attempts": 1,
+      "files": [
+        "batch_007_00001_.png"
+      ]
+    },
+    {
+      "index": 8,
+      "seed": 1004,
+      "steps": 25,
+      "cfg": 7.0,
+      "width": 768,
+      "height": 512,
+      "prompt": "shiba inu, 1dog, solo, one animal, sitting, looking at viewer, best quality, det",
+      "status": "ok",
+      "elapsed": 20.25,
+      "vram_peak_gb": 12.2,
+      "prompt_id": "b6e0abc7-dd76-413c-a8fa-4f0082daa69d",
+      "error": null,
+      "attempts": 1,
+      "files": [
+        "batch_008_00001_.png"
+      ]
+    },
+    {
+      "index": 9,
+      "seed": 1001,
+      "steps": 25,
+      "cfg": 7.0,
+      "width": 768,
+      "height": 512,
+      "prompt": "shiba inu, 1dog, solo, one animal, headshot, close-up, best quality, detailed fu",
+      "status": "ok",
+      "elapsed": 21.93,
+      "vram_peak_gb": 12.2,
+      "prompt_id": "92ec70f1-1500-4ec6-9495-742eaf525306",
+      "error": null,
+      "attempts": 1,
+      "files": [
+        "batch_009_00001_.png"
+      ]
+    },
+    {
+      "index": 10,
+      "seed": 1002,
+      "steps": 25,
+      "cfg": 7.0,
+      "width": 768,
+      "height": 512,
+      "prompt": "shiba inu, 1dog, solo, one animal, headshot, close-up, best quality, detailed fu",
+      "status": "ok",
+      "elapsed": 20.71,
+      "vram_peak_gb": 12.2,
+      "prompt_id": "0e0dc061-52c4-472c-ad73-755f91140963",
+      "error": null,
+      "attempts": 1,
+      "files": [
+        "batch_010_00001_.png"
+      ]
+    },
+    {
+      "index": 11,
+      "seed": 1003,
+      "steps": 25,
+      "cfg": 7.0,
+      "width": 768,
+      "height": 512,
+      "prompt": "shiba inu, 1dog, solo, one animal, headshot, close-up, best quality, detailed fu",
+      "status": "ok",
+      "elapsed": 21.67,
+      "vram_peak_gb": 12.2,
+      "prompt_id": "b3b309ea-e9c7-4d12-80b8-9f4826d3f956",
+      "error": null,
+      "attempts": 1,
+      "files": [
+        "batch_011_00001_.png"
+      ]
+    },
+    {
+      "index": 12,
+      "seed": 1004,
+      "steps": 25,
+      "cfg": 7.0,
+      "width": 768,
+      "height": 512,
+      "prompt": "shiba inu, 1dog, solo, one animal, headshot, close-up, best quality, detailed fu",
+      "status": "ok",
+      "elapsed": 21.04,
+      "vram_peak_gb": 12.2,
+      "prompt_id": "6cd92979-7b7d-462c-8b8b-b317cb6caffa",
+      "error": null,
+      "attempts": 1,
+      "files": [
+        "batch_012_00001_.png"
+      ]
+    },
+    {
+      "index": 13,
+      "seed": 1001,
+      "steps": 25,
+      "cfg": 7.0,
+      "width": 768,
+      "height": 512,
+      "prompt": "shiba inu, 1dog, solo, one animal, running, side view, best quality, detailed fu",
+      "status": "ok",
+      "elapsed": 21.21,
+      "vram_peak_gb": 12.2,
+      "prompt_id": "1755e794-54ce-4ef5-a507-2230d61d9b96",
+      "error": null,
+      "attempts": 1,
+      "files": [
+        "batch_013_00001_.png"
+      ]
+    },
+    {
+      "index": 14,
+      "seed": 1002,
+      "steps": 25,
+      "cfg": 7.0,
+      "width": 768,
+      "height": 512,
+      "prompt": "shiba inu, 1dog, solo, one animal, running, side view, best quality, detailed fu",
+      "status": "ok",
+      "elapsed": 22.39,
+      "vram_peak_gb": 12.2,
+      "prompt_id": "c79a46fd-f319-47ff-a71c-573c6b11aa17",
+      "error": null,
+      "attempts": 1,
+      "files": [
+        "batch_014_00001_.png"
+      ]
+    },
+    {
+      "index": 15,
+      "seed": 1003,
+      "steps": 25,
+      "cfg": 7.0,
+      "width": 768,
+      "height": 512,
+      "prompt": "shiba inu, 1dog, solo, one animal, running, side view, best quality, detailed fu",
+      "status": "ok",
+      "elapsed": 21.51,
+      "vram_peak_gb": 12.2,
+      "prompt_id": "88e5cfd5-9744-4a89-9185-16f6616b40ad",
+      "error": null,
+      "attempts": 1,
+      "files": [
+        "batch_015_00001_.png"
+      ]
+    },
+    {
+      "index": 16,
+      "seed": 1004,
+      "steps": 25,
+      "cfg": 7.0,
+      "width": 768,
+      "height": 512,
+      "prompt": "shiba inu, 1dog, solo, one animal, running, side view, best quality, detailed fu",
+      "status": "ok",
+      "elapsed": 21.44,
+      "vram_peak_gb": 12.2,
+      "prompt_id": "c42d2d0b-f965-443a-a2e9-9efe75f2c6af",
+      "error": null,
+      "attempts": 1,
+      "files": [
+        "batch_016_00001_.png"
+      ]
+    },
+    {
+      "index": 17,
+      "seed": 1001,
+      "steps": 25,
+      "cfg": 7.0,
+      "width": 768,
+      "height": 512,
+      "prompt": "shiba inu, 1dog, solo, one animal, lying down, curled tail, best quality, detail",
+      "status": "ok",
+      "elapsed": 23.05,
+      "vram_peak_gb": 12.2,
+      "prompt_id": "7c384977-8872-481d-a9c4-041c39371b61",
+      "error": null,
+      "attempts": 1,
+      "files": [
+        "batch_017_00001_.png"
+      ]
+    },
+    {
+      "index": 18,
+      "seed": 1002,
+      "steps": 25,
+      "cfg": 7.0,
+      "width": 768,
+      "height": 512,
+      "prompt": "shiba inu, 1dog, solo, one animal, lying down, curled tail, best quality, detail",
+      "status": "ok",
+      "elapsed": 21.46,
+      "vram_peak_gb": 12.2,
+      "prompt_id": "fb06da79-afed-4230-a4b3-18a1bbf8fee0",
+      "error": null,
+      "attempts": 1,
+      "files": [
+        "batch_018_00001_.png"
+      ]
+    },
+    {
+      "index": 19,
+      "seed": 1003,
+      "steps": 25,
+      "cfg": 7.0,
+      "width": 768,
+      "height": 512,
+      "prompt": "shiba inu, 1dog, solo, one animal, lying down, curled tail, best quality, detail",
+      "status": "ok",
+      "elapsed": 21.94,
+      "vram_peak_gb": 12.2,
+      "prompt_id": "40d6a14e-f639-4770-a1a3-87447fa3deca",
+      "error": null,
+      "attempts": 1,
+      "files": [
+        "batch_019_00001_.png"
+      ]
+    },
+    {
+      "index": 20,
+      "seed": 1004,
+      "steps": 25,
+      "cfg": 7.0,
+      "width": 768,
+      "height": 512,
+      "prompt": "shiba inu, 1dog, solo, one animal, lying down, curled tail, best quality, detail",
+      "status": "ok",
+      "elapsed": 23.4,
+      "vram_peak_gb": 12.2,
+      "prompt_id": "602c7ea1-06a9-4013-bd48-8356263adade",
+      "error": null,
+      "attempts": 1,
+      "files": [
+        "batch_020_00001_.png"
+      ]
+    }
+  ]
+}

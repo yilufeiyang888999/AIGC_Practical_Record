@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 import config
 import metrics
 from routers import chat, images
-from security import api_key_scheme  # noqa: F401  注册进 OpenAPI（Authorize 按钮）
+from security import api_key_scheme, key_matches  # noqa: F401  注册进 OpenAPI（Authorize 按钮）
 from tasks import manager
 
 logging.basicConfig(level=logging.INFO,
@@ -16,14 +16,20 @@ logging.basicConfig(level=logging.INFO,
 log = logging.getLogger("gateway")
 
 # /docs 始终开放（页面只暴露 API 结构，内网低敏感）；
-# 真正要锁的是调用行为——/v1/* 由中间件鉴权
+# 真正要锁的是调用行为——/v1/* 与 /files/* 由中间件鉴权
 app = FastAPI(title="AIGC Gateway", version="0.1.0")
+
+# 需要鉴权的路径前缀。
+# ⚠️ /files 必须在这里：出图结果落在 /files/{task_id}/{filename}，
+#    此前只守 /v1/ 的话，结果图是裸奔的——task_id 只有 12 位 hex，
+#    且这与"合规 / 数据不出内网"的定位直接冲突（2026-09-23 修正）。
+PROTECTED_PREFIXES = ("/v1/", "/files/")
 
 
 @app.middleware("http")
 async def api_key_guard(req: Request, call_next):
-    if config.API_KEY and req.url.path.startswith("/v1/"):
-        if req.headers.get("x-api-key") != config.API_KEY:
+    if config.API_KEY and req.url.path.startswith(PROTECTED_PREFIXES):
+        if not key_matches(req.headers.get("x-api-key"), config.API_KEY):
             return JSONResponse({"error": "invalid or missing api key"}, 401)
     return await call_next(req)
 

@@ -1,0 +1,97 @@
+# GPU 告警规则
+#
+# 每条规则的阈值都标注了实测依据。**没有依据的阈值不要写进这里** ——
+# 拍脑袋的阈值是"告警天天响但没人看"的直接原因（docs/04 §5.2）。
+#
+# 修改后热加载：curl -X POST http://127.0.0.1:9090/-/reload
+# 语法自检：    docker compose exec prometheus promtool check rules /etc/prometheus/alert_rules.yml
+
+groups:
+  - name: gpu_p100
+    rules:
+      # 实测降频拐点 79°C，不是理想的 80°C。
+      # 温度在 78~80 震荡，写 80 会几乎不触发 → 漏报。
+      # for: 1m 防抖，避免拐点附近抖动制造告警风暴。
+      - alert: P100HighTemp
+        expr: DCGM_FI_DEV_GPU_TEMP > 79
+        for: 1m
+        labels: { severity: warning }
+        annotations:
+          summary: "P100 温度 {{ $value }}°C 超过降频拐点，散热可能不足"
+          runbook: "见 docs/04 §7 闭环案例；先确认环境温度（空调是否开启），再查导风罩"
+
+      # 降频后实测频率在 999~1200 MHz 波动。
+      # 阈值取 1200 而非 1100 —— 1100 会被反复穿越，告警抖动到没人看。
+      - alert: P100ClockThrottle
+        expr: DCGM_FI_DEV_SM_CLOCK < 1200 and DCGM_FI_DEV_GPU_UTIL > 80
+        for: 3m
+        labels: { severity: warning }
+        annotations:
+          summary: "P100 满载但 SM 频率仅 {{ $value }} MHz，已降频"
+          runbook: "满载降频 = 性能已在损失（频率-耗时比 ≈ 1:1）；检查温度与环境温度"
+
+      # 整卡口径。多实例共存（ComfyUI + llama-server）时 FB_USED 是总和，
+      # 看不出是哪个实例涨的，所以阈值按总和设（docs/04 §6.1）。
+      - alert: GPUMemoryHigh
+        expr: DCGM_FI_DEV_FB_USED / (DCGM_FI_DEV_FB_USED + DCGM_FI_DEV_FB_FREE) > 0.85
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "GPU 显存占用 {{ $value | humanizePercentage }}，整卡口径"
+          runbook: "nvidia-smi --query-compute-apps=pid,process_name,used_memory --format=csv 查归属"
+
+      # XID 是硬件/驱动级错误，任何非零增长都要立刻看。不设 for —— 这类错误不该等。
+      - alert: GPUXidError
+        expr: increase(DCGM_FI_DEV_XID_ERRORS[5m]) > 0
+        labels: { severity: critical }
+        annotations:
+          summary: "GPU XID 错误增长，可能存在硬件或驱动故障"
+
+      # 透传环境下 PCIe 链路质量（Proxmox hostpci 场景特有风险）
+      - alert: PCIeReplayHigh
+        expr: increase(DCGM_FI_DEV_PCIE_REPLAY_COUNTER[10m]) > 100
+        labels: { severity: warning }
+        annotations:
+          summary: "PCIe replay 计数增长过快，透传链路可能不稳定"
+
+      # 采集链路本身挂了 = 监控盲区。这是最容易被忽略的一类告警。
+      - alert: DCGMExporterDown
+        expr: up{job="dcgm"} == 0
+        for: 1m
+        labels: { severity: critical }
+        annotations:
+          summary: "dcgm-exporter 不可达，GPU 监控出现盲区"
+
+  - name: aigc_service
+    rules:
+      # 单张耗时只能从网关拿（dcgm 采不到单张粒度）。
+      # 阈值来自 benchmarks §4：P100 P95 8.92s × 1.3 ≈ 12s。
+      - alert: ImageTaskSlow
+        expr: histogram_quantile(0.95, rate(aigc_image_duration_seconds_bucket[10m])) > 12
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "出图 P95 耗时 {{ $value }}s 超过阈值 12s"
+
+      # 队列持续堆积 = 后端卡住或负载超容量。
+      # 两个后端都是单槽串行，队列深度是这个系统最重要的健康指标。
+      - alert: ImageQueueBacklog
+        expr: aigc_image_queue_depth > 10
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: "出图队列积压 {{ $value }} 个任务"
+
+      - alert: GatewayDown
+        expr: up{job="gateway"} == 0
+        for: 1m
+        labels: { severity: critical }
+        annotations:
+          summary: "aigc-gateway 不可达"
+
+      - alert: LlamaServerDown
+        expr: up{job="llama"} == 0
+        for: 2m
+        labels: { severity: warning }
+        annotations:
+          summary: "llama-server 不可达"

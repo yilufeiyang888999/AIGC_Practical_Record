@@ -18,6 +18,26 @@ router = APIRouter(dependencies=[Depends(api_key_scheme)])
 
 TIMEOUT = httpx.Timeout(connect=10, read=600, write=60, pool=10)
 
+
+def _result_label(status_code: int) -> str:
+    """把 HTTP 状态码收敛成有限集合。
+
+    ⚠️ 不能直接用 str(status_code) 做 label：后端返回多少种状态码，
+    Prometheus 就创建多少条时间序列。这是典型的高基数陷阱——
+    一个 4xx 枚举攻击就能把 TSDB 撑爆。指标要的是"归类"，不是"枚举"。
+    """
+    if 200 <= status_code < 300:
+        return "ok"
+    if status_code == 401 or status_code == 403:
+        return "auth_error"
+    if status_code == 404:
+        return "not_found"
+    if 400 <= status_code < 500:
+        return "client_error"
+    if status_code >= 500:
+        return "upstream_error"
+    return "other"
+
 # Swagger 请求体示例（裸 Request 无类型注解 → OpenAPI 无 body schema →
 # /docs 里连输入框都没有；dict body 既出 schema 又原样透传全部 OpenAI 字段）
 CHAT_EXAMPLE = {
@@ -34,7 +54,7 @@ async def chat(body: dict = Body(..., examples=[CHAT_EXAMPLE])):
     if not body.get("stream"):
         async with httpx.AsyncClient(timeout=TIMEOUT) as c:
             r = await c.post(f"{config.LLM_HOST}/v1/chat/completions", json=body)
-            metrics.REQ_TOTAL.labels("chat", str(r.status_code)).inc()
+            metrics.REQ_TOTAL.labels("chat", _result_label(r.status_code)).inc()
             return JSONResponse(r.json(), r.status_code)
     return StreamingResponse(_stream(body), media_type="text/event-stream")
 

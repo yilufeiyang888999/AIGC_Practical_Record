@@ -1,0 +1,11 @@
+﻿index,status,elapsed,seed,steps,cfg,vram_peak_gb,attempts,prompt,error
+1,ok,8.18,1001,20,7.0,2.23,1,"a cute orange cat sitting on a windowsill, soft morning light, photorealistic, 8",
+2,ok,8.19,1002,20,7.0,2.23,1,"a cute orange cat sitting on a windowsill, soft morning light, photorealistic, 8",
+3,ok,8.25,1001,20,7.0,2.23,1,"a golden retriever running on a beach at sunset, motion blur, photorealistic",
+4,ok,8.17,1002,20,7.0,2.51,1,"a golden retriever running on a beach at sunset, motion blur, photorealistic",
+5,ok,10.19,1001,20,7.0,2.23,1,"a steaming cup of coffee on a wooden desk, shallow depth of field, cozy",
+6,ok,8.29,1002,20,7.0,2.23,1,"a steaming cup of coffee on a wooden desk, shallow depth of field, cozy",
+7,ok,8.14,1001,20,7.0,2.23,1,"an old lighthouse on a rocky cliff, stormy sky, dramatic lighting",
+8,ok,8.16,1002,20,7.0,2.23,1,"an old lighthouse on a rocky cliff, stormy sky, dramatic lighting",
+9,ok,8.16,1001,20,7.0,2.23,1,"a bowl of ramen with soft-boiled egg, overhead shot, food photography",
+10,ok,8.2,1002,20,7.0,2.23,1,"a bowl of ramen with soft-boiled egg, overhead shot, food photography",

@@ -1,0 +1,10 @@
+﻿case,rep,cold,status,ttft_s,ttft_content_s,total_s,decode_s,tok_per_s,prefill_tps_srv,decode_tps_srv,prompt_tokens,completion_tokens,cache_n,error
+short,1,True,ok,0.286,,9.12,8.83,28.98,83.38,28.76,17,256,0,
+short,2,False,ok,0.345,,9.18,8.83,28.98,86.16,28.76,17,256,0,
+short,3,False,ok,0.324,,9.15,8.82,29.01,85.85,28.78,17,256,0,
+medium,1,True,ok,0.94,,9.77,8.83,28.99,452.44,28.76,359,256,0,
+medium,2,False,ok,0.584,,9.42,8.83,28.98,513.36,28.76,359,256,103,
+medium,3,False,ok,0.588,,9.42,8.83,28.98,513.44,28.74,359,256,103,
+long,1,True,ok,2.731,,11.62,8.89,28.81,492.48,28.58,1400,256,103,
+long,2,False,ok,0.614,,9.47,8.85,28.92,504.84,28.68,1400,256,1144,
+long,3,False,ok,0.606,,9.46,8.85,28.91,504.9,28.68,1400,256,1144,
