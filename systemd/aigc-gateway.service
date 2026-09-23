@@ -1,0 +1,26 @@
+# /etc/systemd/system/aigc-gateway.service
+# AIGC 统一网关（FastAPI）——仓库存档，实际部署于 Ubuntu
+# 教训复用：Restart=on-failure + StartLimitBurst（合订本坑 #12）
+[Unit]
+Description=AIGC Unified Gateway (FastAPI)
+After=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/AIGC/aigc-gateway
+# 后端地址本机直连（网关与算力同机部署，Windows 仅作开发机）
+Environment=COMFY_HOST=http://127.0.0.1:8188
+Environment=LLM_HOST=http://127.0.0.1:8000
+# API key 等敏感配置放 .env（chmod 600，不进版本控制）
+EnvironmentFile=-/opt/AIGC/aigc-gateway/.env
+# 绑 docker0 网桥而非 127.0.0.1：Prometheus 容器经 host.docker.internal(=172.17.0.1)
+# 可达，宿主机与 SSH 隧道可达，但局域网不可达（无路由）——比 0.0.0.0 精确（坑 #52）
+ExecStart=/opt/AIGC/aigc-gateway/venv/bin/uvicorn main:app --host 172.17.0.1 --port 8300
+Restart=on-failure
+RestartSec=10
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Install]
+WantedBy=multi-user.target

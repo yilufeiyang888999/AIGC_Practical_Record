@@ -1,0 +1,148 @@
+# syntax=docker/dockerfile:1.7
+#
+# ComfyUI 容器镜像 —— Tesla P100 (Pascal sm_60) 专用
+# ============================================================================
+# 与裸机 systemd 部署保持一致的三项 P100 适配：
+#   1. cuDNN 禁用    —— cuDNN 9.x 在 sm_60 上抛 CUDNN_STATUS_NOT_INITIALIZED
+#   2. xformers 禁用 —— sm_60 无预编译 wheel
+#   3. native 分配器 —— 与裸机配置对齐（P100 上性能无差异，纯为环境一致性）
+#
+# ---------------------------------------------------------------------------
+# 构建前置：在 /opt/AIGC/docker_workspace/ 下准备好这三样
+#   wheels/               torch + torchvision + torchaudio + nvidia-* 依赖（~2.9 GB）
+#   comfyui-src.tar.gz    从宿主机 ComfyUI-server 导出的源码
+#   comfyui_commit.txt    对应的 git commit hash
+#
+# 构建（不要加管道，否则看不到实时进度）：
+#   docker build --progress=plain -t aigc-comfyui:2.6.0-cu124 .
+# 要留档用 tee，不要用 tail：
+#   docker build --progress=plain -t aigc-comfyui:2.6.0-cu124 . 2>&1 | tee build.log
+#
+# ---------------------------------------------------------------------------
+# 国内网络适配清单（容器不继承宿主机任何配置，四个源全部要重新声明）：
+#   [x] apt   → 清华 mirrors      （漏了会卡在 apt-get update 十几分钟）
+#   [x] pip   → 清华 pypi         （漏了报 Errno 101 Network is unreachable）
+#   [x] HF    → hf-mirror
+#   [x] 源码  → 本地 tar          （gh-proxy 传大仓库实测 822s 后 early EOF）
+#   [x] torch → 本地 wheels/      （download.pytorch.org 容器内实测仅 ~250 B/s）
+#
+# 设计原则：构建只依赖本地确定性输入，不依赖构建时刻的外部网络状态。
+# ============================================================================
+
+# 基础镜像用 base 而非 cudnn-runtime：
+#   - PyTorch wheel 自带 CUDA runtime + cuDNN 库，基础镜像那套是重复的
+#   - P100 上我们主动禁用 cuDNN，更不需要它
+#   实测省约 3.5 GB
+FROM nvidia/cuda:12.4.1-base-ubuntu22.04
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple \
+    PIP_TRUSTED_HOST=pypi.tuna.tsinghua.edu.cn \
+    PIP_TIMEOUT=120 \
+    PIP_RETRIES=5 \
+    HF_ENDPOINT=https://hf-mirror.com
+# 用 ENV 而非 pip.conf 配 pip 源：环境变量优先级低于命令行参数，
+# 后面 torch 那条 --find-links 能正常覆盖，两者不冲突。
+
+# apt 换清华源。基础镜像默认 archive.ubuntu.com 在国内极慢。
+# Ubuntu 22.04 用的是传统 sources.list（24.04 起改成 ubuntu.sources，格式不同）。
+RUN sed -i 's@//archive.ubuntu.com@//mirrors.tuna.tsinghua.edu.cn@g; \
+            s@//security.ubuntu.com@//mirrors.tuna.tsinghua.edu.cn@g' \
+        /etc/apt/sources.list \
+    && apt-get update && apt-get install -y --no-install-recommends \
+        python3.10 python3.10-venv python3-pip curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# 源码用宿主机已 pin 好 commit 的副本，不在容器内 clone。
+# 原因：gh-proxy 传大仓库不稳定，且"构建依赖外部网络"违反可复现原则——
+#      同一个 Dockerfile 今天能 build、明天代理挂了就 build 不出来。
+# 正面副作用：宿主机那份 main.py 已打过 cuDNN 补丁，
+#      下面的补丁步骤会检测到并跳过，幂等设计在这里生效。
+RUN --mount=type=bind,source=comfyui-src.tar.gz,target=/tmp/comfyui-src.tar.gz \
+    --mount=type=bind,source=comfyui_commit.txt,target=/tmp/comfyui_commit.txt \
+    mkdir -p ComfyUI \
+    && tar xzf /tmp/comfyui-src.tar.gz -C ComfyUI \
+    && cp /tmp/comfyui_commit.txt ComfyUI/COMMIT \
+    && echo "源码 commit: $(cat ComfyUI/COMMIT)"
+
+WORKDIR /app/ComfyUI
+
+# --mount=type=bind 把 wheels/ 临时挂进构建步骤，构建结束自动消失。
+# 不能用 COPY —— Docker 层不可变，后续 rm 只是加 whiteout 标记，
+# 那 2.9 GB 依然打包进镜像（实测 content size 从 5 GB 虚增到 8.27 GB）。
+#
+# 单独装 requests：ComfyUI 的 requirements.txt 漏声明了它
+# （app/frontend_management.py:16 用到）。裸机 venv 因装过 huggingface_hub
+# 等顺带有了，容器干净环境才暴露出来。
+RUN --mount=type=bind,source=wheels,target=/tmp/wheels \
+    python3.10 -m venv venv \
+    && ./venv/bin/pip install --upgrade pip \
+    && ./venv/bin/pip install -r requirements.txt \
+    && ./venv/bin/pip install requests \
+    && ./venv/bin/pip install --no-index --find-links=/tmp/wheels \
+        torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0
+
+# P100 (Pascal sm_60) cuDNN 补丁
+# 位置要求：必须在 import execution 之前、cuda_malloc 配置之后。
+#   - 太靠前（文件顶部）会提前 import torch，让 --disable-cuda-malloc 失效
+#     （该参数靠在 torch 导入前设 PYTORCH_CUDA_ALLOC_CONF 实现）
+#   - 太靠后则 model_management 已经初始化了 cuDNN
+# 不用 sitecustomize.py：Ubuntu 自带 /usr/lib/python3.10/sitecustomize.py，
+# sys.path 中系统路径排在 venv 之前，venv 里那份永远不会被加载。
+RUN python3 - <<'PY'
+import pathlib, sys
+p = pathlib.Path("main.py")
+src = p.read_text(encoding="utf-8")
+if "cudnn.enabled = False" in src:
+    print("cuDNN 补丁已存在（来自宿主机副本），跳过")
+    sys.exit(0)
+if "import execution" not in src:
+    sys.exit("找不到锚点 'import execution'，ComfyUI 结构可能变了，补丁需重新定位")
+patch = (
+    "# --- P100 (Pascal sm_60) 补丁：cuDNN 9.x 在 sm_60 上初始化失败 ---\n"
+    "import torch\n"
+    "torch.backends.cudnn.enabled = False\n"
+    "# --- 补丁结束 ---\n"
+    "import execution"
+)
+p.write_text(src.replace("import execution", patch, 1), encoding="utf-8")
+print("cuDNN 补丁已打入")
+PY
+
+# 构建期自检
+# 不要用 import server 做自检：ComfyUI 依赖 main.py 的导入顺序预热 sys.modules，
+# 直接 import server 会让 comfy/utils.py 抢占顶层 utils 名字，
+# 产生 "'utils' is not a package" 这种真实启动时不存在的假错误。
+# GPU 校验构建期做不了（构建环境无 GPU），放到运行时。
+RUN ./venv/bin/python -c "\
+import pathlib, torch; \
+assert torch.__version__.startswith('2.6.0+cu124'), f'torch 版本不对: {torch.__version__}'; \
+assert 'cudnn.enabled = False' in pathlib.Path('main.py').read_text(), 'cuDNN 补丁丢失'; \
+import requests, aiohttp, safetensors, transformers, PIL, yaml, torchsde, einops; \
+print('构建自检通过:', torch.__version__)"
+
+RUN mkdir -p output input models custom_nodes
+
+EXPOSE 8188
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=3 \
+    CMD curl -fsS http://127.0.0.1:8188/system_stats || exit 1
+
+# --disable-xformers     P100 sm_60 无 xformers 预编译 wheel，必须禁用
+# --disable-cuda-malloc  P100 上性能无差异（阶段二三机对照实测），
+#                        但与裸机 systemd 配置保持一致，避免环境漂移
+CMD ["./venv/bin/python", "main.py", \
+     "--listen", "0.0.0.0", "--port", "8188", \
+     "--disable-xformers", "--disable-cuda-malloc"]
+
+# TODO（镜像跑通后补）：
+#   requirements.txt 用浮动版本约束，同一 commit 隔几天构建会得到不同依赖树
+#   （实测 transformers 5.16.1 → 5.17.0）。锁版本后镜像才算真正可复现：
+#     docker run --rm --entrypoint ./venv/bin/pip aigc-comfyui:2.6.0-cu124 freeze \
+#       | grep -viE "^(torch|torchvision|torchaudio|nvidia-|triton)==" \
+#       > requirements.lock
+#   然后把 -r requirements.txt 换成 bind mount 挂进来的 requirements.lock

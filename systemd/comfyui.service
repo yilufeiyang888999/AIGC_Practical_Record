@@ -1,0 +1,26 @@
+# /etc/systemd/system/comfyui.service
+[Unit]
+Description=ComfyUI Inference Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/AIGC/ComfyUI-server
+Environment="PATH=/opt/AIGC/ComfyUI-server/venv/bin"
+# 09-20 OOM 治理：回收 PyTorch"保留但未分配"的显存碎片（OOM 报错实测 1.66G），
+# 使 768×512 出图能在 llama-server 驻留（~9.7G）时通过。见 06 手册 §8 / 合订本坑 #51
+Environment="PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True"
+ExecStart=/opt/AIGC/ComfyUI-server/venv/bin/python main.py \
+          --listen 127.0.0.1 --port 8188 \
+          --disable-xformers --disable-cuda-malloc
+Restart=on-failure
+RestartSec=10
+StartLimitIntervalSec=300
+StartLimitBurst=5
+StandardOutput=append:/opt/AIGC/logs/comfyui.log
+StandardError=append:/opt/AIGC/logs/comfyui.log
+
+[Install]
+WantedBy=multi-user.target

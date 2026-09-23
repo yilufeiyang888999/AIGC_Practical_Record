@@ -1,0 +1,18 @@
+# 密钥与环境
+.env
+*.key
+
+# 运行产物
+output/
+logs/
+*.log
+__pycache__/
+*.pyc
+venv/
+
+# 模型与大数据（不入库，靠制品库分发）
+*.safetensors
+*.gguf
+*.ckpt
+wheels/
+comfyui-src.tar.gz

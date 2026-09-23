@@ -1,0 +1,70 @@
+{
+  "1": {
+    "class_type": "CheckpointLoaderSimple",
+    "inputs": { "ckpt_name": "sd_xl_base_1.0.safetensors" },
+    "_meta": { "title": "CHECKPOINT" }
+  },
+  "2": {
+    "class_type": "VAELoader",
+    "inputs": { "vae_name": "sdxl_vae_fp16fix.safetensors" },
+    "_meta": { "title": "VAE_FP16FIX" }
+  },
+  "3": {
+    "class_type": "LoraLoader",
+    "inputs": {
+      "lora_name": "myshiba_sdxl_v1.safetensors",
+      "strength_model": 1.0,
+      "strength_clip": 1.0,
+      "model": ["1", 0],
+      "clip": ["1", 1]
+    },
+    "_meta": { "title": "LORA" }
+  },
+  "4": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "shiba inu, 1dog, solo, one animal, full body, standing, best quality, detailed fur, sharp focus",
+      "clip": ["3", 1]
+    },
+    "_meta": { "title": "POSITIVE_PROMPT" }
+  },
+  "5": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "low quality, worst quality, blurry, deformed, mutated, extra limbs, bad anatomy, multiple dogs, two dogs, multiple heads, two heads, cloned face, extra ears, watermark, text, signature",
+      "clip": ["3", 1]
+    },
+    "_meta": { "title": "NEGATIVE_PROMPT" }
+  },
+  "6": {
+    "class_type": "EmptyLatentImage",
+    "inputs": { "width": 640, "height": 448, "batch_size": 1 },
+    "_meta": { "title": "LATENT" }
+  },
+  "7": {
+    "class_type": "KSampler",
+    "inputs": {
+      "seed": 1001,
+      "steps": 25,
+      "cfg": 7.0,
+      "sampler_name": "euler",
+      "scheduler": "normal",
+      "denoise": 1.0,
+      "model": ["3", 0],
+      "positive": ["4", 0],
+      "negative": ["5", 0],
+      "latent_image": ["6", 0]
+    },
+    "_meta": { "title": "SAMPLER" }
+  },
+  "8": {
+    "class_type": "VAEDecode",
+    "inputs": { "samples": ["7", 0], "vae": ["2", 0] },
+    "_meta": { "title": "VAE_DECODE" }
+  },
+  "9": {
+    "class_type": "SaveImage",
+    "inputs": { "filename_prefix": "sdxl_eval", "images": ["8", 0] },
+    "_meta": { "title": "SAVE" }
+  }
+}

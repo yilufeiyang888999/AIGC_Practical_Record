@@ -1,0 +1,117 @@
+# syntax=docker/dockerfile:1.7
+#
+# ComfyUI 容器镜像 —— RTX 5060 (Blackwell sm_120) 专用，Windows Docker Desktop 用
+# ============================================================================
+# 与 Dockerfile.p100 同源的离线可复现设计，但 P100 的三项适配在本卡上
+# 两项不需要、一项保留：
+#   [ ] cuDNN 补丁      —— sm_120 的 cuDNN 正常，不需要禁用
+#   [ ] --disable-xformers —— sm_120 支持 xformers，不需要禁用
+#   [x] --disable-cuda-malloc —— 5060 实测必须（+2.6s 劣化 + 批量任务静默丢弃）
+#
+# ---------------------------------------------------------------------------
+# 与 P100 镜像的差异变量（改错任意一个都跑不起来）：
+#   基础镜像   cu12.4 → cu12.8   （sm_120 内核只在 cu128+ 的 wheel 里）
+#   torch      2.6.0+cu124 → 2.11.0+cu128
+#   cuDNN 补丁 有 → 无
+#   xformers   禁用 → 保留
+#
+# ---------------------------------------------------------------------------
+# 构建前置（在构建目录下准备好，路径与 Dockerfile.p100 对齐）：
+#   wheels/               torch 2.11.0+cu128 三件套 + 依赖
+#                         获取：在 Windows 的 ComfyUI-Win\venv 里
+#                           pip download torch==2.11.0 torchvision==0.26.0 torchaudio==2.11.0 \
+#                             --index-url https://download.pytorch.org/whl/cu128 -d wheels\
+#   comfyui-src.tar.gz    从 ComfyUI-Win 导出的源码（commit 22e40d2a）
+#   comfyui_commit.txt    对应的 git commit hash
+#
+# 构建（Windows Docker Desktop，WSL2 后端 + GPU 支持已开启）：
+#   docker build --progress=plain -f Dockerfile.win -t aigc-comfyui:2.11.0-cu128 .
+#
+# 注意：本镜像用于 Windows 端"构建验证"（阶段三 3.5），不做性能测试。
+#      8G 显存跑容器有额外开销，且 Docker Desktop 的 GPU 直通经 WSL2 有一层转发。
+# ============================================================================
+
+# cu128 base。sm_120 内核只在 cu128+ 的 wheel 里，cu124 base 装了也跑不了。
+FROM nvidia/cuda:12.8.1-base-ubuntu22.04
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple \
+    PIP_TRUSTED_HOST=pypi.tuna.tsinghua.edu.cn \
+    PIP_TIMEOUT=120 \
+    PIP_RETRIES=5 \
+    HF_ENDPOINT=https://hf-mirror.com
+
+# apt 换清华源（22.04 用传统 sources.list）
+RUN sed -i 's@//archive.ubuntu.com@//mirrors.tuna.tsinghua.edu.cn@g; \
+            s@//security.ubuntu.com@//mirrors.tuna.tsinghua.edu.cn@g' \
+        /etc/apt/sources.list \
+    && apt-get update && apt-get install -y --no-install-recommends \
+        python3.10 python3.10-venv python3-pip curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# 源码用本地 tar（commit 22e40d2a），与 P100 镜像同一 commit，保证双机行为一致
+RUN --mount=type=bind,source=comfyui-src.tar.gz,target=/tmp/comfyui-src.tar.gz \
+    --mount=type=bind,source=comfyui_commit.txt,target=/tmp/comfyui_commit.txt \
+    mkdir -p ComfyUI \
+    && tar xzf /tmp/comfyui-src.tar.gz -C ComfyUI \
+    && cp /tmp/comfyui_commit.txt ComfyUI/COMMIT \
+    && echo "源码 commit: $(cat ComfyUI/COMMIT)"
+
+WORKDIR /app/ComfyUI
+
+# torch 走本地 cu128 wheel。requirements.txt 里若含 torch 会被本地版本覆盖，
+# 顺序不能反（阶段一踩了 4 次的坑）。单独装 requests 同理（requirements.txt 漏声明）。
+RUN --mount=type=bind,source=wheels,target=/tmp/wheels \
+    python3.10 -m venv venv \
+    && ./venv/bin/pip install --upgrade pip \
+    && ./venv/bin/pip install -r requirements.txt \
+    && ./venv/bin/pip install requests \
+    && ./venv/bin/pip install --no-index --find-links=/tmp/wheels \
+        torch==2.11.0 torchvision==0.26.0 torchaudio==2.11.0
+
+# 构建期自检：torch 版本 + 关键第三方包。
+# 本卡无 cuDNN 补丁，不检查补丁（与 Dockerfile.p100 的差异点之一）。
+RUN ./venv/bin/python -c "\
+import torch; \
+assert torch.__version__.startswith('2.11.0+cu128'), f'torch 版本不对: {torch.__version__}'; \
+import requests, aiohttp, safetensors, transformers, PIL, yaml, torchsde, einops; \
+print('构建自检通过:', torch.__version__)" \
+ && for d in comfy/ldm/models comfy/ldm/modules comfy_extras app utils; do \
+      [ -d "$d" ] || { echo "源码缺失: $d"; exit 1; }; \
+    done \
+ && echo "构建自检: 源码完整性 OK"
+
+RUN mkdir -p output input models custom_nodes
+
+EXPOSE 8188
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=3 \
+    CMD curl -fsS http://127.0.0.1:8188/system_stats || exit 1
+
+# --disable-cuda-malloc  5060 实测必须：cudaMallocAsync 在本卡上造成
+#                        每张图 +2.6s 劣化（2.34×），且 20 连发时任务静默丢弃。
+#                        （阶段二三机对照：仅 5060 受影响，P100/A10 零影响）
+# 不加 --disable-xformers —— sm_120 支持 xformers，禁用了反而损失性能
+CMD ["./venv/bin/python", "main.py", \
+     "--listen", "0.0.0.0", "--port", "8188", \
+     "--disable-cuda-malloc"]
+
+# ============================================================================
+# 与 Dockerfile.p100 的参数对照表（移植时逐项核对，避免抄错）
+# ============================================================================
+#   参数                    5060 (本文件)      P100 (Dockerfile.p100)
+#   基础镜像                cu12.8.1-base      cu12.4.1-base
+#   torch                   2.11.0+cu128       2.6.0+cu124
+#   cuDNN 补丁(main.py)     无                 有
+#   --disable-xformers      无                 有
+#   --disable-cuda-malloc   有                 有（纯为环境一致）
+#   requirements.lock       各自维护           各自维护
+#
+# TODO：
+#   1. requirements.lock 用与 P100 相同的方式导出锁定（pip freeze）
+#   2. Windows Docker Desktop 的 GPU 直通依赖 WSL2，性能有损，
+#      本镜像仅用于"能跑通"的构建验证，性能基准仍以裸机/容器版 P100 为准

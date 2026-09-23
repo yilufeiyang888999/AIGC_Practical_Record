@@ -1,0 +1,168 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "系统吞吐口径（rate），含 TTFT/请求间隙，低于单请求引擎速度属正常（占空比）。引擎口径基线：decode 28.7 / prefill 513 tok/s（benchmarks §2.5）",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "custom": { "fillOpacity": 10, "lineWidth": 2, "showPoints": "never" }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 0 },
+      "id": 1,
+      "options": {
+        "legend": { "calcs": ["last", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "targets": [
+        { "expr": "rate(llamacpp:tokens_predicted_total[1m])", "legendFormat": "decode tok/s（系统吞吐）", "refId": "A" },
+        { "expr": "rate(llamacpp:prompt_tokens_total[1m])", "legendFormat": "prefill tok/s", "refId": "B" }
+      ],
+      "title": "LLM 吞吐（tok/s）— 引擎基线 28.7/513",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "--parallel 1 单槽串行：processing 恒 ≤1，deferred 持续增长 = 排队积压，需评估加实例",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "custom": { "fillOpacity": 10, "lineWidth": 2, "showPoints": "never" }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 0 },
+      "id": 2,
+      "options": {
+        "legend": { "calcs": ["last", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "targets": [
+        { "expr": "llamacpp:requests_processing", "legendFormat": "在途请求", "refId": "A" },
+        { "expr": "llamacpp:requests_deferred", "legendFormat": "排队请求", "refId": "B" }
+      ],
+      "title": "LLM 并发（单槽串行）",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "本平台最重要的业务健康指标。持续 >3 关注、>5 触发扩容评估（08 指南 §3.5）",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 3 },
+              { "color": "red", "value": 5 }
+            ]
+          },
+          "custom": { "fillOpacity": 10, "lineWidth": 2, "showPoints": "never" }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 9 },
+      "id": 3,
+      "options": {
+        "legend": { "calcs": ["last", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "targets": [
+        { "expr": "aigc_image_queue_depth", "legendFormat": "出图队列深度", "refId": "A" }
+      ],
+      "title": "出图队列深度 — >3 关注 / >5 扩容信号",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "执行耗时（不含排队）。基线：P100 512×512 ~7.9s / 768×512+LoRA ~17.7s。P95 持续超基线 20% 先查温度墙",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "custom": { "fillOpacity": 10, "lineWidth": 2, "showPoints": "never" }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 9 },
+      "id": 4,
+      "options": {
+        "legend": { "calcs": ["last", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "targets": [
+        { "expr": "histogram_quantile(0.5, rate(aigc_image_duration_seconds_bucket[5m]))", "legendFormat": "P50", "refId": "A" },
+        { "expr": "histogram_quantile(0.95, rate(aigc_image_duration_seconds_bucket[5m]))", "legendFormat": "P95", "refId": "B" }
+      ],
+      "title": "出图执行耗时（s）— 基线 7.9/17.7",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "网关视角首 token 延迟（含网络）。基线：热 0.29s / 冷 0.9s（kernel 加载税）",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "custom": { "fillOpacity": 10, "lineWidth": 2, "showPoints": "never" }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 18 },
+      "id": 5,
+      "options": {
+        "legend": { "calcs": ["last", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "targets": [
+        { "expr": "histogram_quantile(0.5, rate(aigc_llm_ttft_seconds_bucket[5m]))", "legendFormat": "TTFT P50", "refId": "A" },
+        { "expr": "histogram_quantile(0.95, rate(aigc_llm_ttft_seconds_bucket[5m]))", "legendFormat": "TTFT P95", "refId": "B" }
+      ],
+      "title": "LLM TTFT（s）— 基线 0.29/0.9",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "done 速率 = 实际产能（张/5min 换算）；failed 出现即应查 task error 字段",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "custom": { "fillOpacity": 10, "lineWidth": 2, "showPoints": "never" }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 18 },
+      "id": 6,
+      "options": {
+        "legend": { "calcs": ["last", "sum"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "targets": [
+        { "expr": "increase(aigc_requests_total{route=\"images\",result=\"done\"}[5m])", "legendFormat": "成功 / 5m", "refId": "A" },
+        { "expr": "increase(aigc_requests_total{route=\"images\",result=\"failed\"}[5m])", "legendFormat": "失败 / 5m", "refId": "B" }
+      ],
+      "title": "出图产能（成功/失败）",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 39,
+  "tags": ["aigc", "llm", "gateway"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "timezone": "browser",
+  "title": "AIGC-应用层观测",
+  "uid": "aigc-app",
+  "version": 1
+}

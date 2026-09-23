@@ -1,0 +1,134 @@
+# AIGC Engineer Portfolio
+
+> 10+ 年 IT 运维 → AIGC 工程。一套**真实运行、全部数字实测**的私有化 AIGC 平台：双机异构部署 → API 自动化 → 容器化 → GPU 可观测性 → LoRA 训练 → LLM 服务化 → 统一网关 → 企业方案。
+> **本仓库的每个性能数字都有原始数据文件可查，每次结论修正都留了案。**
+
+---
+
+## 为什么值得看这个仓库
+
+| 差异化 | 说明 |
+| --- | --- |
+| **① 全部实测，没有抄来的数字** | 170+ 图像样本、9 轮基准、3 轮 LLM 基准，原始 JSON 留档；benchmarks 里记录了**三次测量方法本身的错误与修正** |
+| **② 六次推翻自己的结论，全部记档** | 从"cudaMallocAsync 跨架构共性"到"Proxmox 透传拿不到 per-process 归属"——每次修正保留原结论 + 证伪证据 + 日期（见下方"自我修正记录"） |
+| **③ 交付物即产物** | 7 份工程手册 + 可复现镜像 + 统一网关源码 + 监控规则 + systemd 单元，不是玩具 demo，是可移交的生产件 |
+
+---
+
+## 平台架构
+
+```
+ Windows 开发端（RTX 5060 8G, Blackwell sm_120）
+   │  SSH 隧道 / API 调用方 / 基准脚本
+   ▼
+ Ubuntu 算力端（Tesla P100 16G, Pascal sm_60, Proxmox 透传 VM）
+ ┌────────────────────────────────────────────────────┐
+ │  aigc-gateway (FastAPI :8300)                       │
+ │  鉴权 / 任务队列 / GPU 准入控制 / Prometheus 指标    │
+ │    ├──▶ ComfyUI :8188（SD1.5 + 自训 LoRA）          │
+ │    └──▶ llama-server :8000（9B/14B，OpenAI 兼容）   │
+ │                                                    │
+ │  三层监控：dcgm-exporter(硬件) → Prometheus → Grafana│
+ │           llama-server --metrics(服务)  ↗            │
+ │           gateway /metrics(应用)        ↗            │
+ │                                                    │
+ │  容器化：ComfyUI 镜像（离线可复现）+ 监控栈 compose   │
+ │  训练：sd-scripts（LoRA 全链路，与推理资源互斥）      │
+ └────────────────────────────────────────────────────┘
+```
+
+---
+
+## 核心实测数据（摘要，全量见 [benchmarks/实测数据.md](benchmarks/实测数据.md)）
+
+**图像生成（SD 1.5，512×512/20步，WebSocket 精测，n=20）：**
+
+| 指标 | RTX 5060 8G | Tesla P100 16G |
+| --- | --- | --- |
+| 单张中位耗时 | **1.94 s** | **7.90 s** |
+| 稳态吞吐 | 27.9 张/分 | 7.5 张/分（温度墙后 ~6.4） |
+| 大分辨率 LoRA（768×512/25步） | — | 17.7 s/张，3.6 张/分，100% 成功 |
+
+**LLM 推理（llama.cpp / P100，ornith-9B-Q8_0）：**
+
+| 指标 | 实测值 | 备注 |
+| --- | --- | --- |
+| decode | **28.7 tok/s** | 内存带宽硬顶 |
+| prefill | **513 tok/s** | ubatch 调优后（**3.2×**，见下） |
+| TTFT（短对话） | 0.29 s | |
+| KV 前缀缓存命中 | TTFT 再省 ~80% | |
+
+**关键工程发现（全部实测定因）：**
+
+| 发现 | 数据 |
+| --- | --- |
+| 温度墙量化 | 79°C 拐点 / ~70s，频率-耗时比 1.155≈1.157；降速 13~30%，**单张工作量越大降速越狠** |
+| `cudaMallocAsync` 影响 | **仅 RTX 5060 复现**（+2.6s/张 + 批量静默丢任务）；P100/A10 零影响——不是跨架构共性 |
+| 测量方法偏差 | 2s 轮询让 1.94s 任务 P95 虚高 76% → 基准必须 WebSocket |
+| 容器化开销 | **< 1%**（拆解热惯性/整卡口径/page cache 三个干扰源后的净值） |
+| LLM ubatch 调优 | prefill 162→513 tok/s（**3.2×**），机理三向验证 |
+| Q4_K_M vs Q8_0（Pascal） | **Q4 反而慢 22%**（反量化开销 > 带宽收益，与社区常识相反） |
+
+---
+
+## 六次推翻自己的结论（本项目最珍贵的部分）
+
+| # | 原结论 | 证伪方式 | 最终真相 |
+| --- | --- | --- | --- |
+| 1 | "cudaMallocAsync 问题是跨架构共性" | A10 + P100 对照实验 | 仅 RTX 5060/Windows/8G 复现；**一台机器的样本不能支撑普遍性断言** |
+| 2 | "P100 尾部 10.2s 毛刺是物理现象" | WebSocket 重测 | 轮询量化假象，毛刺从未存在；**先确认量具再相信读数** |
+| 3 | "容器化开销 +5.8%" | 拆热惯性/口径/page cache | 净开销 < 1%；**A/B 先排除干扰再看净差异** |
+| 4 | "LoRA 畸形根因是数据集多样性" | 换一致数据集重训仍失败 | 根因是**生成分辨率与训练构图不匹配**；绕了数据集/优化器/TE/精度一整圈，答案是最朴素的变量 |
+| 5 | "AdamW8bit 在 sm_60 上算错" | 第 4 次修正的连带平反 | v1/v2 从未在正确画幅下被评测过，优化器一直无辜 |
+| 6 | "Proxmox 透传拿不到 per-process 显存归属" | 用户质疑后复测 | `query-compute-apps` 可用（它只列 C 型进程，空表≠不支持）；**下"平台不支持"结论前，先确认被测对象当时存在** |
+
+> 这些修正全部保留在文档原文中（划线保留 + 修正日期），不删改历史。**能区分证据与推理、能自我证伪，是我认为 Infra 工作最核心的素质。**
+
+---
+
+## 文档导航（[docs/](docs/)）
+
+| 文档 | 内容 |
+| --- | --- |
+| [00-全指南合订本](docs/00-AIGC工程师落地实战指南-合订本.md) | 五阶段完整指南 + **52 个踩坑清单** + 附录 D.1~D.14 |
+| [01-ComfyUI-API开发手册](docs/01-ComfyUI-API开发手册.md) | REST/WebSocket 客户端设计、批量生成、指标采集 |
+| [03-容器化部署交付手册](docs/03-ComfyUI容器化部署交付手册.md) | 离线可复现镜像（字节级一致）、四维构建自检 |
+| [04-GPU监控与告警方案](docs/04-GPU监控与告警方案.md) | 三层监控、实测阈值、"假设→监控验证"闭环 |
+| [05-LoRA训练工程化实战手册](docs/05-LoRA训练工程化实战手册.md) | 训练全链路、评测方法论、四次误诊排错实录 |
+| [06-LLM服务化部署手册](docs/06-LLM服务化部署手册.md) | P100 调优四参数、ubatch 3.2×、共存规则、网关 |
+| [07-企业私有化AIGC平台方案](docs/07-企业私有化AIGC平台方案.md) | 选型/对外服务/TCO/合规/安全/路线图，全实测数据支撑 |
+| [08-平台使用指南](docs/08-平台使用指南.md) | 用户视角：业务系统/开发者/运维三类角色的操作手册与示例 |
+
+## 代码资产
+
+| 目录 | 内容 |
+| --- | --- |
+| [scripts/](scripts/) | 环境校验、ComfyUI REST/WS 客户端、图像/LLM 基准脚本（输出结构化 JSON/CSV） |
+| [gateway/aigc-gateway/](gateway/aigc-gateway/) | FastAPI 统一网关：出图异步队列 + LLM 流式透传 + API Key + GPU 准入控制 + Prometheus 指标 |
+| [docker/](docker/) | 双架构 Dockerfile（P100/5060）、离线构建、Grafana 面板、监控配置 |
+| [systemd/](systemd/) | comfyui / aigc-gateway 单元（自愈 + 防重启风暴）、llama.cpp 模型切换工具 |
+| [workflows/](workflows/) | API 格式工作流（base + LoRA），节点标题约定 |
+| [benchmarks/](benchmarks/) | 全部实测数据与测量方法修正记录 |
+
+---
+
+## 快速体验
+
+```bash
+# 网关（依赖最简，纯 CPU 可跑通 API 层）
+cd gateway/aigc-gateway
+pip install -r requirements.txt
+export COMFY_HOST=http://<comfyui>:8188 LLM_HOST=http://<llama>:8000 AIGC_API_KEY=dev
+uvicorn main:app --host 127.0.0.1 --port 8300
+# → POST /v1/images/generations（异步出图）/ POST /v1/chat/completions（流式 LLM）/ GET /metrics
+```
+
+完整部署路径见 docs/00 合订本的五阶段指南；每份手册均可独立按章执行。
+
+---
+
+## 关于作者
+
+10+ 年 IT 运维工程师（基础设施/监控/自动化），2026 年系统转型 AIGC 工程。本仓库为转型期的完整实战记录：从双机部署到企业方案，覆盖 **GPU 运维、CUDA 版本治理、容器化交付、Prometheus/Grafana 可观测性、任务队列与 API 网关、LoRA 训练工程化、私有化部署方案、容量与成本测算**。
+
+**求职方向**：AI Infra 工程师 / MLOps 工程师 / AIGC 平台工程师。
