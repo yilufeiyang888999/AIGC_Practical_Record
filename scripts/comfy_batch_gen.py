@@ -19,11 +19,14 @@ from contextlib import ExitStack
 from datetime import datetime
 from pathlib import Path
 
+import _path  # noqa: F401  引导：把仓库根加入 sys.path，必须在 import comfy_client 之前
 from comfy_client import (
     make_session, load_workflow, build_prompt, submit, wait_for,
     fetch_images, find_by_title, find_by_class,
-    check_server, list_checkpoints, COMFY_HOST, log, BASE_DIR,
+    check_server, list_checkpoints, COMFY_HOST, log, get_base_dir,
 )
+
+BASE_DIR = get_base_dir()   # 工作区根：workflows/ output/ logs/ 都在它下面
 
 # WebSocket 是可选增强。缺依赖或连接失败都自动降级到 REST 轮询，不影响主流程。
 USE_WS = os.getenv("COMFY_USE_WS", "").lower() in ("1", "true", "yes")

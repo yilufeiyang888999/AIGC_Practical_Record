@@ -875,7 +875,7 @@ scp /d/AIGC/ComfyUI-Win/base_workflow.json aigc-box:/opt/AIGC/ComfyUI-server/wor
 
 ```
 Scripts\
-├─ comfy_client.py                  # 可复用 API 客户端
+├─ _path.py                         # 引导：仓库根入 sys.path（共享包 comfy_client/）
 ├─ comfy_batch_gen.py               # 批量出图 + 指标采集
 ├─ inspect_workflow.py              # 工作流结构检查工具
 ├─ workflows\
@@ -1059,7 +1059,7 @@ for t in ["POSITIVE_PROMPT", "NEGATIVE_PROMPT", "SAMPLER", "LATENT"]:
 
 ### 2.2 生产级 API 客户端
 
-`Scripts\comfy_client.py`：
+共享包 `comfy_client/`（仓库根，scripts 与网关共用同一份）：
 
 ```python
 """
@@ -1067,7 +1067,7 @@ ComfyUI API 客户端 —— 生产级实现
 用法：
     set COMFY_HOST=http://127.0.0.1:8188   # 打 Windows 本地 5060
     set COMFY_HOST=http://127.0.0.1:8288   # 打 Ubuntu P100
-    python comfy_client.py
+    python -m comfy_client
 """
 import json, time, uuid, os, random, copy, logging
 from pathlib import Path
@@ -1366,11 +1366,11 @@ cd Scripts
 
 :: 打 Windows 本地 5060
 set COMFY_HOST=http://127.0.0.1:8188
-python comfy_client.py
+python -m comfy_client
 
 :: 打 Ubuntu P100（需要 ssh aigc-box 窗口开着）
 set COMFY_HOST=http://127.0.0.1:8288
-python comfy_client.py
+python -m comfy_client
 ```
 
 **这就是"双机算力调度"的核心**：同一份脚本、同一份工作流、同一个模型，改一个环境变量就换执行节点。因为走 SSH 隧道，**不需要改 IP、不需要开防火墙、不需要暴露端口**。
@@ -1403,7 +1403,7 @@ from datetime import datetime
 from comfy_client import (
     make_session, load_workflow, build_prompt, submit, wait_for,
     fetch_images, find_by_title, find_by_class,
-    check_server, list_checkpoints, COMFY_HOST, log, BASE_DIR,
+    check_server, list_checkpoints, COMFY_HOST, log, get_base_dir,
 )
 
 # ---------- 批量任务定义 ----------
@@ -1807,7 +1807,7 @@ python comfy_batch_gen.py
 
 ### 阶段产出物
 
-1. ✅ `comfy_client.py`（REST 客户端：标题定位 / 前置校验 / 重试 / 超时 / 任务消失检测 / 结构化日志）
+1. ✅ `comfy_client/` 共享包（REST 客户端：标题定位 / 前置校验 / 重试 / 超时 / 任务消失检测 / 结构化日志）
 2. ✅ `comfy_ws.py`（WebSocket 客户端：步级进度 + history 兜底 + 自动降级）
 3. ✅ `comfy_batch_gen.py`（批量 + 指标采集 + 自适应超时 + `/interrupt` + JSON/CSV 双输出）
 4. ✅ `inspect_workflow.py`（工作流结构检查工具）
@@ -2746,9 +2746,16 @@ AIGC-Engineer-Portfolio/
 │  ├─ 07-企业私有化AIGC平台方案.md           # 选型/TCO/合规/安全/路线图
 │  ├─ 08-平台使用指南.md                    # 业务/开发者/运维三类角色手册
 │  └─ 09-自我修正与方法论.md                 # 六次结论修正（本项目最值钱的内容）
+├─ comfy_client/                # ⭐ 共享包：ComfyUI 客户端唯一实现（scripts 与网关共用）
+│  ├─ __init__.py               # 公共 API 导出
+│  ├─ config.py                 # 工作区 / 地址 / 日志（configure 显式注入）
+│  ├─ workflow.py               # 加载 / 节点定位 / 参数注入
+│  ├─ client.py                 # 提交 / 等待 / 下载（全套容错）
+│  └─ __main__.py               # python -m comfy_client 自检入口
+├─ pyproject.toml               # pip install -e .（生产部署把包装进 site-packages）
 ├─ scripts/
 │  ├─ verify_env.py               # 环境四维校验（真跑 kernel，不看 is_available）
-│  ├─ comfy_client.py             # ComfyUI REST 客户端（生产级容错）
+│  ├─ _path.py                   # 引导：把仓库根加入 sys.path（共享包用）
 │  ├─ comfy_ws.py                 # WebSocket 精测客户端
 │  ├─ comfy_batch_gen.py          # 批量基准（输出结构化 JSON/CSV）
 │  ├─ llm_bench.py                # LLM 基准（服务端权威计时）
@@ -3078,7 +3085,7 @@ git checkout -f <commit SHA>
 ### D.6 阶段二完成度 ✅（2026-09-09 ~ 09-10）
 
 - [x] 2.1 导出 API 格式工作流（Dev Mode + `_meta.title` 约定）
-- [x] 2.2 `comfy_client.py` 生产级 REST 客户端
+- [x] 2.2 `comfy_client/` 生产级 REST 客户端（2026-09-23 上提为共享包，scripts 与网关共用同一份）
 - [x] 2.3 双机联调（`COMFY_HOST` 环境变量切换节点）
 - [x] 2.4 `comfy_batch_gen.py` 批量 + 指标采集
 - [x] 2.5 双机 benchmark（n=20 × 2 节点，两端 native，100% 成功）
@@ -3514,7 +3521,7 @@ loss: 0.205 → 0.183（稳步下降，健康）
   - `docs/07-企业私有化AIGC平台方案.md`（阶段五交付物：企业级方案，TCO/合规/路线图）
   - `docs/08-平台使用指南.md`（用户视角：业务系统/开发者/运维三角色操作手册）
   - `gateway/aigc-gateway/`（FastAPI 统一网关 v0.1：出图队列 + LLM 透传 + 鉴权 + metrics + GPU 准入）
-  - `Scripts/`（comfy_client.py / comfy_ws.py / comfy_batch_gen.py / llm_bench.py / inspect_workflow.py）
+  - `comfy_client/`（共享包：ComfyUI 客户端唯一实现）+ `Scripts/`（comfy_ws.py / comfy_batch_gen.py / llm_bench.py / inspect_workflow.py）
 - **当前有效基线**：5060 中位 **1.94s**、P100 中位 **7.90s**（均为 WebSocket 精测）
 - 进度：**阶段一 ✅ | 阶段二 ✅ | 阶段三 ✅ | 阶段四 ✅ | 阶段五 ✅ 全部完成（LLM 实测/网关生产化/三层监控/07 方案/作品集/简历）——16 周计划收官**
 - 后续可选方向（按岗位价值排序）：**SDXL LoRA 🔵 训练中（D.15，明天评测）** → Grafana 应用层面板 ✅（09-21）→ 散热改造复测 ✅（09-21 双阴性，导风罩方案另排期）→ K8s 选修（附录 A）

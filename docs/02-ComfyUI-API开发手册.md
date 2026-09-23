@@ -1,7 +1,7 @@
 # ComfyUI API 开发手册
 
 > 基于 ComfyUI `0.3.67` / commit `22e40d2a` / frontend `1.28.8` 实测编写
-> 配套代码：`Scripts/comfy_client.py`、`comfy_ws.py`、`comfy_batch_gen.py`、`inspect_workflow.py`
+> 配套代码：共享包 `comfy_client/`（仓库根）、`scripts/comfy_ws.py`、`scripts/comfy_batch_gen.py`、`scripts/inspect_workflow.py`
 > 最后更新：2026-09-10
 
 ---
@@ -587,7 +587,9 @@ pct_confidence = "ok" if n >= 20 else f"low (n={n}, 建议 >= 20)"
 
 ```
 Scripts/
-├─ comfy_client.py         # REST 客户端：提交/等待/下载/上传
+comfy_client/            # ⭐ 共享包（仓库根）：REST 客户端 提交/等待/下载/上传
+Scripts/
+├─ _path.py              # 引导：把仓库根加入 sys.path
 ├─ comfy_ws.py             # WebSocket 客户端：步级进度
 ├─ comfy_batch_gen.py      # 批量出图 + 指标采集
 ├─ inspect_workflow.py     # 工作流结构检查

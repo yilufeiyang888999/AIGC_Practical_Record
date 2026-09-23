@@ -133,13 +133,14 @@
 
 | 目录 | 内容 |
 | --- | --- |
-| [scripts/](scripts/) | 环境校验、ComfyUI REST/WS 客户端、图像/LLM 基准脚本、**汇总重算脚本**、训练启动、一键部署/回滚 |
+| [comfy_client/](comfy_client/) | ⭐ 共享包：ComfyUI API 客户端**唯一实现**，scripts 与网关共用同一份 |
+| [scripts/](scripts/) | 环境校验、WS 客户端、图像/LLM 基准脚本、**汇总重算脚本**、训练启动、一键部署/回滚 |
 | [gateway/aigc-gateway/](gateway/aigc-gateway/) | FastAPI 统一网关：出图异步队列 + LLM 流式透传 + API Key + GPU 准入控制 + Prometheus 指标 + TTL 回收 |
 | [docker/](docker/) | 双架构 Dockerfile、**docker-compose.yml**、监控配置（prometheus/alert_rules）、Grafana 面板 + provisioning |
 | [systemd/](systemd/) | comfyui / aigc-gateway / llama-server 单元（自愈 + 防重启风暴）、llama.cpp 模型切换工具 |
 | [workflows/](workflows/) | API 格式工作流（base + LoRA + SDXL LoRA），节点标题约定 |
 | [benchmarks/](benchmarks/) | 实测数据与测量方法修正记录 + **[raw/](benchmarks/raw/) 25 轮原始数据** |
-| [tests/](tests/) | 25 个单测：鉴权行为、工作流注入、模板不污染、两份客户端不漂移 |
+| [tests/](tests/) | 27 个单测：鉴权行为、工作流注入、模板不污染、**共享包单一来源**（禁止再把实现复制回消费方） |
 
 ---
 

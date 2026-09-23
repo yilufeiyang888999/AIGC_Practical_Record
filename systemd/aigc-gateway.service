@@ -8,6 +8,14 @@ After=network-online.target
 [Service]
 Type=simple
 User=root
+# 共享包 comfy_client/ 在仓库根，不在 aigc-gateway/ 下。两种部署形态二选一：
+#   A) 整仓部署：把仓库放在 /opt/AIGC/（含 comfy_client/），
+#      config.py 的 sys.path 兜底自动向上找到它，无需安装。
+#   B) 单目录部署（本单元的假设）：只拷 aigc-gateway/ 到 /opt/AIGC/，
+#      **必须**先把共享包装进 venv：
+#          /opt/AIGC/aigc-gateway/venv/bin/pip install -e /path/to/AIGC-Engineer-Portfolio
+#      漏了这一步，网关启动会直接报
+#      "未找到 comfy_client/ 共享包"——这是刻意早失败，不是静默用错实现。
 WorkingDirectory=/opt/AIGC/aigc-gateway
 # 后端地址本机直连（网关与算力同机部署，Windows 仅作开发机）
 Environment=COMFY_HOST=http://127.0.0.1:8188

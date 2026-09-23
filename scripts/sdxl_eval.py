@@ -17,12 +17,16 @@ import json
 import time
 from pathlib import Path
 
+import _path  # noqa: F401  引导：把仓库根加入 sys.path
 from comfy_client import (
     make_session, build_prompt, submit, wait_for, fetch_images,
-    find_by_title, check_server, COMFY_HOST, log, BASE_DIR,
+    find_by_title, check_server, COMFY_HOST, log, get_base_dir,
 )
 
-WF_FILE = BASE_DIR / "Workflows" / "sdxl_lora_workflow_api.json"
+BASE_DIR = get_base_dir()
+# 大小写要写对：仓库里是小写 workflows/。此前写成 "Workflows"，
+# Windows 上文件系统不区分大小写侥幸能跑，到 Linux 上直接 FileNotFoundError。
+WF_FILE = BASE_DIR / "workflows" / "sdxl_lora_workflow_api.json"
 
 PROMPT = ("shiba inu, 1dog, solo, one animal, full body, standing, "
           "best quality, detailed fur, sharp focus")

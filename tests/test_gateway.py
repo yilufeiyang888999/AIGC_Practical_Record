@@ -17,7 +17,8 @@ import unittest
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(REPO_ROOT / "gateway" / "aigc-gateway"))
+sys.path.insert(0, str(REPO_ROOT))                             # comfy_client 共享包在仓库根
+sys.path.insert(0, str(REPO_ROOT / "gateway" / "aigc-gateway"))  # security/config 在网关目录
 
 import comfy_client as cc          # noqa: E402
 from security import key_matches   # noqa: E402
@@ -145,45 +146,59 @@ class TestWorkflowTemplate(unittest.TestCase):
         self.assertTrue(lora.startswith("myshiba_v4"), f"默认 LoRA 应为 v4 基线，实际 {lora}")
 
 
-class TestNoClientDrift(unittest.TestCase):
-    """scripts/ 与 gateway/ 各有一份 comfy_client.py（独立部署单元所致）。
+class TestSingleSourceOfTruth(unittest.TestCase):
+    """2026-09-23：两份 comfy_client.py 已合并为仓库根的共享包 comfy_client/。
 
-    两份实现一旦漂移，就会出现"脚本能跑、网关报错"的鬼故事。
-    这里按 **AST 比对函数定义** —— 不能用整文件哈希，因为两份的 WF_FILE
-    默认路径本来就不同（各自指向自己目录下的 workflows），那是配置不是逻辑。
-    **真正的修法是抽成共享包，那是后续重构项。**
+    此前这里测的是"两份实现有没有漂移"——那只能**发现**问题，不能**阻止**问题。
+    现在改测两件事：
+      1. 不会再有人把实现复制回消费方目录（漂移的根源）
+      2. 共享包在两种工作区下都能解析出正确的路径（合并带来的新风险）
     """
 
-    def _function_asts(self, rel: str) -> dict:
-        import ast
-        tree = ast.parse((REPO_ROOT / rel).read_text(encoding="utf-8"))
-        return {n.name: ast.dump(n) for n in tree.body
-                if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}
+    def test_no_local_copies(self):
+        """消费方目录里不能再出现 comfy_client.py。"""
+        for rel in ("scripts/comfy_client.py", "gateway/aigc-gateway/comfy_client.py"):
+            self.assertFalse((REPO_ROOT / rel).exists(),
+                             f"{rel} 不应存在：实现已统一到仓库根的 comfy_client/ 包，"
+                             f"复制一份回去就是漂移的开始")
 
-    def test_shared_functions_identical(self):
-        a = self._function_asts("scripts/comfy_client.py")
-        b = self._function_asts("gateway/aigc-gateway/comfy_client.py")
-        self.assertEqual(set(a), set(b), "两份 comfy_client.py 的函数集合不同")
-        for name in sorted(a):
-            self.assertEqual(a[name], b[name],
-                             f"comfy_client.py 的 {name}() 两份实现已漂移，请同步")
+    def test_package_lives_at_repo_root(self):
+        self.assertTrue((REPO_ROOT / "comfy_client" / "__init__.py").exists())
+        self.assertEqual(Path(cc.__file__).resolve().parent,
+                         (REPO_ROOT / "comfy_client").resolve(),
+                         "import 到的不是仓库内的包，检查 sys.path / 是否装了旧版本")
 
     def test_public_api_present(self):
-        """网关依赖这几个函数，改名/删除必须被拦住。"""
-        fns = self._function_asts("gateway/aigc-gateway/comfy_client.py")
+        """网关与脚本依赖这些名字，改名/删除必须被拦住。"""
         for name in ("build_prompt", "submit", "wait_for", "fetch_images",
-                     "find_by_title", "find_by_class"):
-            self.assertIn(name, fns)
+                     "find_by_title", "find_by_class", "load_workflow",
+                     "make_session", "check_server", "list_checkpoints",
+                     "configure", "get_workflow_path", "get_base_dir"):
+            self.assertTrue(hasattr(cc, name), f"共享包缺少 {name}")
 
-    def test_default_workflow_paths_exist(self):
-        """默认工作流路径不能是死路径（此前两份都指向不存在的文件）。"""
-        for rel in ("scripts/comfy_client.py", "gateway/aigc-gateway/comfy_client.py"):
-            src = (REPO_ROOT / rel).read_text(encoding="utf-8")
-            line = next(l for l in src.splitlines() if l.startswith("WF_FILE"))
-            expr = line.split("=", 1)[1].strip()
-            base = (REPO_ROOT / rel).parent
-            path = eval(expr, {"BASE_DIR": base})     # noqa: S307 - 受控表达式
-            self.assertTrue(path.exists(), f"{rel} 的默认工作流不存在: {path}")
+    def test_default_workflow_path_exists(self):
+        """默认工作区（仓库根）的工作流不能是死路径。"""
+        path = cc.get_workflow_path()
+        self.assertTrue(path.exists(), f"默认工作流不存在: {path}")
+
+    def test_gateway_workspace_resolves(self):
+        """网关 configure 之后，三个目录都应落在网关自己目录下。
+
+        这是合并共享包引入的新风险：两边工作区不同，配错了不会报错，
+        只会静默读错工作流、把图写到错误的地方。
+        """
+        gw = REPO_ROOT / "gateway" / "aigc-gateway"
+        snapshot = cc.get_settings()
+        try:
+            cc.configure(base_dir=gw,
+                         workflow=str(gw / "workflows" / "lora_workflow_api.json"))
+            self.assertEqual(cc.get_base_dir(), gw.resolve())
+            self.assertTrue(cc.get_workflow_path().exists())
+            self.assertEqual(cc.get_output_dir(), gw.resolve() / "output")
+            self.assertEqual(cc.get_log_dir(), gw.resolve() / "logs")
+        finally:
+            cc.configure(base_dir=snapshot.base_dir, workflow=snapshot.workflow,
+                         host=snapshot.host)
 
 
 if __name__ == "__main__":

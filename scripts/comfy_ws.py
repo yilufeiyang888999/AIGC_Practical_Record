@@ -17,6 +17,7 @@ ComfyUI WebSocket 客户端 —— 步级实时进度。
 import json, time, uuid, sys
 from urllib.parse import urlparse, urlencode
 
+import _path  # noqa: F401  引导：单独运行本脚本时也需要
 from comfy_client import COMFY_HOST, TIMEOUT, log
 
 try:

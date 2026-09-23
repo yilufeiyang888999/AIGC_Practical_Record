@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "comfy-client"
+version = "1.0.0"
+description = "ComfyUI API 客户端（生产级容错）：提交/等待/下载/工作流注入"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "requests>=2.31",
+    "urllib3>=2.0",
+]
+
+[project.optional-dependencies]
+# WebSocket 步级进度（scripts/comfy_ws.py 用），可选
+ws = ["websocket-client>=1.6"]
+
+[tool.setuptools]
+packages = ["comfy_client"]
+
+# ---------------------------------------------------------------------------
+# 安装方式
+#   生产部署（推荐）：pip install -e .    # 装进 site-packages，任何 CWD 都能 import
+#   免安装直跑      ：不装也行，scripts/ 与 gateway/ 各有 3 行 sys.path 引导
+#
+# 注意：这里只把 comfy_client 做成可安装的包。gateway/aigc-gateway 是独立部署单元，
+# 保持自己的 requirements.txt，不并进来——它要能单独拷到服务器上跑。
+# ---------------------------------------------------------------------------

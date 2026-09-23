@@ -1,3 +1,8 @@
+# 注意：出图客户端不在本目录，而是仓库根的共享包 comfy_client/
+# （scripts/ 与网关共用同一份实现，避免两份拷贝漂移）。
+# 独立部署（只把 aigc-gateway/ 拷到服务器）时，需要先把共享包装进 venv：
+#     pip install -e /path/to/AIGC-Engineer-Portfolio
+# 若整仓部署（仓库根在本目录的上级链上），config.py 的 sys.path 兜底会自动找到它。
 fastapi>=0.110
 uvicorn[standard]>=0.29
 httpx>=0.27
